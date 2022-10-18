@@ -5,7 +5,7 @@ import pygame
 class Tile(pygame.sprite.Sprite):
     def __init__(self, x_pos, resolution):
         super().__init__()
-        self.image = pygame.image.load(normpath("./Images/Ground.png"))
+        self.image = pygame.image.load(normpath("./Images/Ground.png")).convert_alpha()
         self.width, self.height = self.image.get_size()
         self.x = x_pos
         self.y = resolution[1] - self.height

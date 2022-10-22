@@ -1,4 +1,5 @@
 from os.path import normpath
+from Global import *
 import Wiggle
 import Physics
 import pygame
@@ -82,7 +83,7 @@ class Bird(pygame.sprite.Sprite):
                 # Speed Range: 1 ~ self.gravity_speed
                 # angle: -(0~90)
                 angle = 0 + ((90 - 0) / (((self.gravity_speed - 1) or 1) / (speed - 1)))
-        return self.set_angle(-round(angle))
+        self.set_angle(-round(angle))
 
     def set_angle(self, new_angle):
         self.image = self.costumes[self.calc_costume_num()]
@@ -95,7 +96,6 @@ class Bird(pygame.sprite.Sprite):
         bounds = self.image.get_bounding_rect()
         self.rect = pygame.Rect(self.x + bounds.topleft[0], self.y + bounds.topleft[1], bounds.width, bounds.height)
         self.mask = pygame.mask.from_surface(self.image)
-        return new_size
 
     def tick_costume(self, force_update=False):
         if self.costume_timer.get_time() > self.costume_switch_delay:
@@ -105,23 +105,42 @@ class Bird(pygame.sprite.Sprite):
             if force_update:
                 self.image = self.costumes[self.calc_costume_num()]
 
-    def collision_detection(self, ground_pos):
-        """Returns an int according to the current collision status.
-
-        0: No collision
-        1: Ground collision
-        2: Ceiling collision
+    def collision_detection(self, ground_pos, pipe_group, rotated=False):
         """
-        bounds = self.image.get_bounding_rect()
-        collide_rect = pygame.Rect(self.x + bounds.topleft[0], self.y + bounds.topleft[1], bounds.width, bounds.height)
-        if collide_rect.y + collide_rect.height > ground_pos[1]:
-            corrected_y = ground_pos[1] - collide_rect.height
-            self.update_y_pos(-(collide_rect.y - corrected_y))
-            self.rect = pygame.Rect(collide_rect.x, self.y + bounds.topleft[1], collide_rect.width, collide_rect.height)
+        Returns an int according to the current collision status.
+
+        | 0: No collision
+        | 1: Ground collision
+        | 2: Ceiling collision
+        | 3: Pipe collision, rotation has been aligned until it is no longer colliding with pipes
+        | 4: Pipe collision, rotation cannot be aligned (This should never happen)
+        """
+        if rotated:
+            original_angle = self.angle
+            result = pygame.sprite.spritecollideany(self, pipe_group, collided=collide_function)
+            if result is None:
+                return 0, None
+            first_collision = result
+            while result is not None:
+                if self.direction == "down":
+                    self.angle += 1
+                elif self.direction == "up":
+                    self.angle -= 1
+                self.set_angle(self.angle)
+                result = pygame.sprite.spritecollideany(self, pipe_group, collided=collide_function)
+                if self.angle < -360 or self.angle > 0:
+                    self.angle = original_angle
+                    self.set_angle(self.angle)
+                    return 4, None
+            return 3, first_collision
+        if self.rect.y + self.rect.height > ground_pos[1]:
+            corrected_y = ground_pos[1] - self.rect.height
+            self.update_y_pos(-(self.rect.y - corrected_y))
+            self.rect = pygame.Rect(self.rect.x, self.y + self.rect.topleft[1], self.rect.width, self.rect.height)
             return 1
-        elif collide_rect.y < -collide_rect.height:
-            self.update_y_pos(-self.image.get_size()[1] - collide_rect.y)
-            self.rect = pygame.Rect(collide_rect.x, self.y + bounds.topleft[1], collide_rect.width, collide_rect.height)
+        elif self.rect.y < 0:
+            self.update_y_pos(-self.rect.y)
+            self.rect = pygame.Rect(self.rect.x, self.y + self.rect.topleft[1], self.rect.width, self.rect.height)
             return 2
         else:
             return 0

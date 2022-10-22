@@ -1,5 +1,5 @@
 from os.path import normpath
-from Colors import *
+from Global import *
 import pygame
 """
 This file is only for testing rotation-centering in pygame. It can be safely deleted because it is not imported by the

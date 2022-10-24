@@ -40,7 +40,7 @@ class GroundGroup(pygame.sprite.Group):
     def __init__(self, resolution):
         super().__init__()
         self.resolution = resolution
-        self.__delta_x = -40
+        self.__delta_x = -100  # Production movement: -100, Debug movement: -40
         self.temp = Tile(-1, self.resolution)
         self.sprite_objects = []
         self.__frame_timer = Time.Time()

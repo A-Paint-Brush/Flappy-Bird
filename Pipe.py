@@ -1,5 +1,6 @@
 from os.path import normpath
 from Global import *
+import math
 import random
 import pygame
 import Ground
@@ -19,7 +20,7 @@ class Pipe(Ground.Tile):
         # Minimum value of bottom pipe y position: y = min_length + constant (constant > bird_height)
         # Maximum value of bottom pipe y position: y = resolution[1] - min_length
         # Y position of top pipe: bottom_pipe_y - constant
-        self.gap_distance = 95
+        self.gap_distance = 145  # Production distance: 145, Debug distance: 400
         self.min_length = 86
         self.bottom_pipe_pos = (0, random.randint(self.min_length + self.gap_distance, self.resolution[1] - self.min_length))
         self.top_pipe_pos = (0, self.bottom_pipe_pos[1] - self.gap_distance - self.height)
@@ -80,15 +81,25 @@ class PipeGroup(Ground.GroundGroup):
             self.add(self.sprite_objects[-1])
 
     def move(self, distance=None, bird=None):
-        self.update(distance)
+        # The value must be converted to positive first, because floor() works differently on negative values.
+        whole_steps = math.floor(abs(distance))  # Break the number into an integer and a float
+        float_remainder = abs(distance) - whole_steps
+        for step in range(whole_steps):
+            # Repeat (integer amount) of times, 1 pixel at a time.
+            # This ensures the pipe won't move a large amount of pixels in one frame when at a very low frame-rate,
+            # and skip over the bird entirely without the collision detection catching it.
+            self.update(-1)  # Move back one pixel if colliding.
+            result = pygame.sprite.spritecollideany(bird, self, collided=collide_function)
+            if result is not None:
+                self.update(1)
+                return True, result
+        self.update(-float_remainder)  # Whatever is left will be less than one, so it can be safely added in one frame.
         result = pygame.sprite.spritecollideany(bird, self, collided=collide_function)
         if result is None:
             return False, None
-        first_collision = result
-        while result is not None:
+        else:
             self.update(1)
-            result = pygame.sprite.spritecollideany(bird, self, collided=collide_function)
-        return True, first_collision
+            return True, result
 
     def kill_colliding(self):
         if not self.collide_init:

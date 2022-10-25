@@ -5,15 +5,16 @@ import Ground
 import Bird
 import Pipe
 import Rainbow
+import Keyboard
+import FPS
 import pygame
-# TODO: Hidden FPS counter.
-# TODO: Show hit-boxes and FPS counter when "xyzzy" is entered.
-# TODO: Activate jeb_ mode on Konami code.
 # TODO: Toast notifier (in game) when low frame-rate is detected.
 # TODO: Make the title screen, game over screen, and pause menu.
+# TODO: Screen darkening effect as pause menu slides into view.
 # TODO: Option to hide mouse pointer in the pause menu.
 # TODO: Make buttons on title screen dilate on hover, and flash white on click.
 # TODO: Fading effect as the game transitions from the title screen to the game.
+# TODO: Submit score pop-up on results screen.
 
 
 class MainProc:
@@ -42,6 +43,13 @@ class MainProc:
         self.bird = Bird.Bird(self.fixed_resolution, self.tiles_group.get_size())
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
         self.rainbow = Rainbow.Rainbow()
+        self.fps_counter = FPS.Counter(self.fixed_resolution)
+        key_table = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
+        konami_string = "↑↑↓↓←→←→ba"
+        magic_string = "xyzzy"
+        key_generator = lambda string: tuple(key_table[char] if char in key_table else ord(char) for char in string)
+        self.konami = Keyboard.KeySequence(key_generator(konami_string))
+        self.magic_word = Keyboard.KeySequence(key_generator(magic_string))
         self.display_surface = pygame.Surface(self.fixed_resolution)
         self.clock = pygame.time.Clock()
         self.fps = 60
@@ -53,25 +61,15 @@ class MainProc:
                 elif event.type == pygame.VIDEORESIZE:
                     if not self.full_screen:
                         self.resize_window(event)
-                elif (event.type == pygame.MOUSEBUTTONDOWN) or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.interact()
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
-                    if self.full_screen:
-                        self.full_screen = False
-                        self.current_resolution = list(self.restore_resolution)
-                        self.display = pygame.display.set_mode(self.current_resolution, pygame.RESIZABLE)
-                    else:
-                        self.full_screen = True
-                        self.restore_resolution = tuple(self.current_resolution)
-                        self.current_resolution = list(self.monitor_resolution)
-                        self.display = pygame.display.set_mode(self.current_resolution, pygame.FULLSCREEN)
-                # TODO: Make sure to change the activation method for debug mode and rainbow mode to something more complicated.
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_u:
-                    self.debug = not self.debug
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_j:
-                    self.rainbow_mode = not self.rainbow_mode
-                    if self.rainbow_mode:
-                        self.rainbow.init_rainbow()
+                elif event.type == pygame.KEYDOWN:
+                    self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)
+                    self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
+                    if event.key == pygame.K_F11:
+                        self.toggle_full_screen()
+                    elif event.key == pygame.K_SPACE:
+                        self.interact()
             self.display_surface.fill(BLACK)
             self.display_surface.blit(self.background, (0, 0))
             # region Screen Rendering
@@ -99,6 +97,8 @@ class MainProc:
             self.pipe_group.draw(self.display_surface)
             if self.debug:
                 self.pipe_group.draw_hit_box(self.display_surface)
+                self.fps_counter.tick()
+                self.fps_counter.draw(self.display_surface)
             self.bird.draw(self.display_surface, self.debug)
             # endregion
             if self.rainbow_mode:
@@ -167,6 +167,32 @@ class MainProc:
             print("Ground collision")
             return 4, None
         return 0, None
+
+    def check_key_sequence(self, sequence_obj, key_code, callback):
+        result = sequence_obj.push_key(key_code)
+        if result:
+            callback()
+
+    def toggle_rainbow(self):
+        self.rainbow_mode = not self.rainbow_mode
+        if self.rainbow_mode:
+            self.rainbow.init_rainbow()
+
+    def toggle_debug(self):
+        self.debug = not self.debug
+        if not self.debug:
+            self.fps_counter.stop()
+
+    def toggle_full_screen(self):
+        if self.full_screen:
+            self.full_screen = False
+            self.current_resolution = list(self.restore_resolution)
+            self.display = pygame.display.set_mode(self.current_resolution, pygame.RESIZABLE)
+        else:
+            self.full_screen = True
+            self.restore_resolution = tuple(self.current_resolution)
+            self.current_resolution = list(self.monitor_resolution)
+            self.display = pygame.display.set_mode(self.current_resolution, pygame.FULLSCREEN)
 
     def die(self):
         self.game_state = "dying"

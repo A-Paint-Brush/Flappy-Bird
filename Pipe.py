@@ -21,7 +21,7 @@ class Pipe(Ground.Tile):
         # Maximum value of bottom pipe y position: y = resolution[1] - min_length
         # Y position of top pipe: bottom_pipe_y - constant
         self.gap_distance = 145  # Production distance: 145, Debug distance: 400
-        self.min_length = 86
+        self.min_length = 53
         self.bottom_pipe_pos = (0, random.randint(self.min_length + self.gap_distance, self.resolution[1] - self.min_length))
         self.top_pipe_pos = (0, self.bottom_pipe_pos[1] - self.gap_distance - self.height)
         self.image = pygame.Surface((self.width, self.resolution[1]))

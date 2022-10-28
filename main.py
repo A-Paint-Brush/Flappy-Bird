@@ -1,6 +1,5 @@
 from os.path import normpath
 from Global import *
-from Resize import *
 import Ground
 import Bird
 import Pipe

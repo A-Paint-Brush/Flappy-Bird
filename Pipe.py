@@ -46,11 +46,10 @@ class Pipe(Ground.Tile):
 
     def init_flash(self):
         self.flash_timer.reset_timer()
-        self.flash_timer.get_time()
 
     def flash_tick(self):
-        prev_time = self.flash_timer.get_prev_time()
-        delta_time = self.flash_timer.get_time() - prev_time
+        delta_time = self.flash_timer.get_time()
+        self.flash_timer.reset_timer()
         self.image = self.original_surface.copy()
         self.brightness += round(self.flash_movement * delta_time)
         if self.brightness >= self.max_brightness:

@@ -5,6 +5,7 @@ import Bird
 import Pipe
 import Rainbow
 import Keyboard
+import Notifier
 import FPS
 import pygame
 # TODO: Toast notifier (in game) when low frame-rate is detected.
@@ -41,6 +42,7 @@ class MainProc:
         self.tiles_group.generate()
         self.bird = Bird.Bird(self.fixed_resolution, self.tiles_group.get_size())
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
+        self.notifiers = Notifier.ToastGroup(self.fixed_resolution)
         self.rainbow = Rainbow.Rainbow()
         self.fps_counter = FPS.Counter(self.fixed_resolution)
         key_table = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
@@ -61,7 +63,8 @@ class MainProc:
                     if not self.full_screen:
                         self.resize_window(event)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.interact()
+                    if event.button == 1:
+                        self.interact()
                 elif event.type == pygame.KEYDOWN:
                     self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)
                     self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
@@ -69,6 +72,11 @@ class MainProc:
                         self.toggle_full_screen()
                     elif event.key == pygame.K_SPACE:
                         self.interact()
+                    elif event.key == pygame.K_t:
+                        text = "Lorem ipsum dolor sit amet!\n\nConsectetur adipiscing elit. Aliquam sit amet luctus " \
+                               "eros, quis placerat erat. Donec gravida magna vel finibus imperdiet. Mauris " \
+                               "tincidunt, turpis sed maximus semper."
+                        self.notifiers.create_toast(text)
             self.display_surface.fill(BLACK)
             self.display_surface.blit(self.background, (0, 0))
             # region Screen Rendering
@@ -99,6 +107,9 @@ class MainProc:
                 self.fps_counter.tick()
                 self.fps_counter.draw(self.display_surface)
             self.bird.draw(self.display_surface, self.debug)
+            if self.notifiers.get_toast_num() > 0:
+                self.notifiers.update()
+                self.notifiers.draw(self.display_surface)
             # endregion
             if self.rainbow_mode:
                 self.rainbow.tick()

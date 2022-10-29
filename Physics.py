@@ -26,3 +26,23 @@ class PreciseDeceleration(PreciseAcceleration):
         s0 = self.time.get_prev_time()
         s1 = self.time.get_time()
         return ((-self.acceleration * s1 + self.starting_velocity) + (-self.acceleration * s0 + self.starting_velocity)) * (s1 - s0) * 0.5, self.starting_velocity - self.acceleration * s1
+
+
+class EulerAcceleration:
+    def __init__(self, acceleration):
+        self.speed = 0
+        self.acceleration = acceleration
+        self.time = Time.Time()
+        self.time.reset_timer()
+
+    def calc(self):
+        delta_time = self.time.get_time()
+        self.time.reset_timer()
+        self.speed += self.acceleration * delta_time
+        return self.speed * delta_time
+
+
+class EulerDeceleration(EulerAcceleration):
+    def __init__(self, deceleration, starting_velocity):
+        super().__init__(deceleration)
+        self.speed = starting_velocity

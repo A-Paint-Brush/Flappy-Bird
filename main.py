@@ -15,6 +15,7 @@ import pygame
 # TODO: Make buttons on title screen dilate on hover, and flash white on click.
 # TODO: Fading effect as the game transitions from the title screen to the game.
 # TODO: Submit score pop-up on results screen.
+# TODO: Achievements page and in-game instructions.
 
 
 class MainProc:
@@ -37,6 +38,7 @@ class MainProc:
         self.flash_pipe = None  # Stores the sprite instance of the pipe that has to be flashed.
         pygame.display.set_caption("Flappy Bird")
         self.display = pygame.display.set_mode(self.fixed_resolution, pygame.RESIZABLE)
+        self.resized_surface = None
         self.background = pygame.image.load(normpath("./Images/background.png")).convert_alpha()
         self.tiles_group = Ground.GroundGroup(self.fixed_resolution)
         self.tiles_group.generate()
@@ -65,6 +67,11 @@ class MainProc:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         self.interact()
+                        if self.notifiers.get_toast_num() > 0 and self.resized_surface is not None:
+                            self.notifiers.send_mouse_pos(resize_mouse_pos(event.pos,
+                                                                           self.fixed_resolution,
+                                                                           self.current_resolution,
+                                                                           self.resized_surface.get_size()))
                 elif event.type == pygame.KEYDOWN:
                     self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)
                     self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
@@ -113,9 +120,9 @@ class MainProc:
             # endregion
             if self.rainbow_mode:
                 self.rainbow.tick()
-            resized_surface = resize_surf(self.display_surface, self.current_resolution)
+            self.resized_surface = resize_surf(self.display_surface, self.current_resolution)
             self.display.fill(self.rainbow.get_color() if self.rainbow_mode else BLACK)
-            self.blit_resized_surface(self.display, resized_surface)
+            self.blit_resized_surface(self.display, self.resized_surface)
             pygame.display.update()
         pygame.quit()
 

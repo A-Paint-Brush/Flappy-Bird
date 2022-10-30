@@ -23,8 +23,11 @@ def resize_surf(display_surf, size):
     return pygame.transform.scale(display_surf, new_size)
 
 
-def resize_mouse_pos(pos, fixed_size, current_size):
-    return fixed_size[0] * (pos[0] / current_size[0]), fixed_size[1] * (pos[1] / current_size[1])
+def resize_mouse_pos(pos, fixed_size, current_size, resized_surf):
+    offset_pos = (pos[0] - ((current_size[0] - resized_surf[0]) / 2),
+                  pos[1] - ((current_size[1] - resized_surf[1]) / 2))
+    return (fixed_size[0] * (offset_pos[0] / resized_surf[0])),\
+           (fixed_size[1] * (offset_pos[1] / resized_surf[1]))
 
 
 def draw_rounded_rect(surface, x, y, width, height, radius, color):

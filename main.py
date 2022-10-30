@@ -6,6 +6,7 @@ import Pipe
 import Rainbow
 import Keyboard
 import Notifier
+import Achievements
 import FPS
 import pygame
 # TODO: Toast notifier (in game) when low frame-rate is detected.
@@ -34,6 +35,7 @@ class MainProc:
         self.rainbow_mode = False
         self.full_screen = False
         # endregion
+        self.rickroll_audio = pygame.mixer.Sound(normpath("./Sounds/Rickroll.wav"))
         self.pipe_death = False  # Is True if the bird died by hitting a pipe.
         self.flash_pipe = None  # Stores the sprite instance of the pipe that has to be flashed.
         pygame.display.set_caption("Flappy Bird")
@@ -45,14 +47,17 @@ class MainProc:
         self.bird = Bird.Bird(self.fixed_resolution, self.tiles_group.get_size())
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
         self.notifiers = Notifier.ToastGroup(self.fixed_resolution)
+        self.achievement_list = Achievements.Storage()
         self.rainbow = Rainbow.Rainbow()
         self.fps_counter = FPS.Counter(self.fixed_resolution)
         key_table = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
         konami_string = "↑↑↓↓←→←→ba"
         magic_string = "xyzzy"
+        rickroll_string = "rickroll"
         key_generator = lambda string: tuple(key_table[char] if char in key_table else ord(char) for char in string)
         self.konami = Keyboard.KeySequence(key_generator(konami_string))
         self.magic_word = Keyboard.KeySequence(key_generator(magic_string))
+        self.rickroll = Keyboard.KeySequence(key_generator(rickroll_string))
         self.display_surface = pygame.Surface(self.fixed_resolution)
         self.clock = pygame.time.Clock()
         self.fps = 60
@@ -75,15 +80,11 @@ class MainProc:
                 elif event.type == pygame.KEYDOWN:
                     self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)
                     self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
+                    self.check_key_sequence(self.rickroll, event.key, self.toggle_rickroll)
                     if event.key == pygame.K_F11:
                         self.toggle_full_screen()
                     elif event.key == pygame.K_SPACE:
                         self.interact()
-                    elif event.key == pygame.K_t:
-                        text = "Lorem ipsum dolor sit amet!\n\nConsectetur adipiscing elit. Aliquam sit amet luctus " \
-                               "eros, quis placerat erat. Donec gravida magna vel finibus imperdiet. Mauris " \
-                               "tincidunt, turpis sed maximus semper."
-                        self.notifiers.create_toast(text)
             self.display_surface.fill(BLACK)
             self.display_surface.blit(self.background, (0, 0))
             # region Screen Rendering
@@ -109,10 +110,14 @@ class MainProc:
                     self.pipe_death = not self.flash_pipe.flash_tick()
             self.tiles_group.draw(self.display_surface)
             self.pipe_group.draw(self.display_surface)
+            fps = self.fps_counter.tick()
             if self.debug:
                 self.pipe_group.draw_hit_box(self.display_surface)
-                self.fps_counter.tick()
                 self.fps_counter.draw(self.display_surface)
+            if fps is not None and fps < 30:
+                if not self.achievement_list.has_achievement(3):
+                    achievement_text = self.achievement_list.get_new_achievement(3)
+                    self.notifiers.create_toast(*achievement_text)
             self.bird.draw(self.display_surface, self.debug)
             if self.notifiers.get_toast_num() > 0:
                 self.notifiers.update()
@@ -194,11 +199,28 @@ class MainProc:
         self.rainbow_mode = not self.rainbow_mode
         if self.rainbow_mode:
             self.rainbow.init_rainbow()
+            if not self.achievement_list.has_achievement(0):
+                achievement_text = self.achievement_list.get_new_achievement(0)
+                self.notifiers.create_toast(*achievement_text)
 
     def toggle_debug(self):
         self.debug = not self.debug
-        if not self.debug:
-            self.fps_counter.stop()
+        if self.debug:
+            if not self.achievement_list.has_achievement(1):
+                achievement_text = self.achievement_list.get_new_achievement(1)
+                self.notifiers.create_toast(*achievement_text)
+        else:
+            pass
+            # self.fps_counter.stop()
+
+    def toggle_rickroll(self):
+        if pygame.mixer.get_busy():
+            self.rickroll_audio.stop()
+        else:
+            self.rickroll_audio.play()
+            if not self.achievement_list.has_achievement(2):
+                achievement_text = self.achievement_list.get_new_achievement(2)
+                self.notifiers.create_toast(*achievement_text)
 
     def toggle_full_screen(self):
         if self.full_screen:

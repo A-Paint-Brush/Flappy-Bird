@@ -38,7 +38,9 @@ class Counter(pygame.sprite.Sprite):
             return None
         else:
             self.fps_data.pop(0)
-            self.update_text("{} FPS".format(self.calc_data()))
+            fps = self.calc_data()
+            self.update_text("{} FPS".format(fps))
+            return fps
 
     def stop(self):
         self.fps_data.clear()

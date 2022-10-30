@@ -6,16 +6,16 @@ import pygame
 
 
 class ToastNotifier(pygame.sprite.Sprite):
-    def __init__(self, resolution, y_pos, message_text):
+    def __init__(self, resolution, y_pos, message_title, message_text):
         super().__init__()
-        self.font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 18)
-        self.icon_img = pygame.Surface((50, 50))  # Icon placeholder
+        self.title_font = pygame.font.Font(normpath("./Fonts/Arial bold.ttf"), 20)
+        self.body_font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 18)
+        self.icon_img = pygame.Surface((50, 50))
         self.icon_img.fill(BLACK)
         self.image_padding = 15
         self.resolution = resolution
         self.x = self.resolution[0]
         self.y = y_pos
-        self.line_height = self.font.size("|")[1]
         self.width = 320
         self.corner_radius = 15
         self.close_btn_img = pygame.Surface((15, 15))
@@ -23,20 +23,26 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.close_btn_y = self.corner_radius
         self.close_btn_img.fill(BLACK)
         self.close_rect = pygame.Rect(self.close_btn_x, self.close_btn_y, *self.close_btn_img.get_size())
+        self.title_text = word_wrap_text(message_title,
+                                         self.width - self.corner_radius * 2 - self.icon_img.get_size()[0] -
+                                         self.image_padding - self.close_btn_img.get_size()[0],
+                                         self.title_font)
         self.body_text = word_wrap_text(message_text,
-                                        self.width - self.corner_radius * 2 - self.icon_img.get_size()[0] - self.image_padding - self.close_btn_img.get_size()[0],
-                                        self.font)
-        self.height = self.line_height * len(self.body_text) + self.corner_radius * 2
+                                        self.width - self.corner_radius * 2 - self.icon_img.get_size()[0] -
+                                        self.image_padding - self.close_btn_img.get_size()[0],
+                                        self.body_font)
+        self.height = self.title_font.size("|")[1] * (len(self.title_text) + 1) + \
+                      self.body_font.size("|")[1] * len(self.body_text) + \
+                      self.corner_radius * 2
         self.image = pygame.Surface((self.width, self.height))
         self.image.fill(WHITE)
         self.image.set_colorkey(WHITE, pygame.RLEACCEL)
         draw_rounded_rect(self.image, 0, 0, self.width, self.height, self.corner_radius, GREY)
         self.image.blit(self.icon_img, (self.corner_radius, self.corner_radius))
         self.image.blit(self.close_btn_img, (self.close_btn_x, self.close_btn_y))
-        for line_number, line_text in enumerate(self.body_text):
-            text_surf = self.font.render(line_text, True, BLACK)
-            self.image.blit(text_surf, (self.corner_radius + self.icon_img.get_size()[0] + self.image_padding,
-                                        self.corner_radius + self.line_height * line_number))
+        self.render_text(self.title_font, self.title_text, self.title_font.size("|")[1])
+        self.render_text(self.body_font, self.body_text, self.body_font.size("|")[1],
+                         self.title_font.size("|")[1] * (len(self.title_text) + 1))
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         # region Physics Variables
         self.direction = "left"
@@ -47,16 +53,22 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.delta_time = Time.Time()
         self.delta_time.reset_timer()
         self.notification_timer = Time.Time()
-        self.dismiss_timer = 5
+        self.dismiss_timer = 10
         self.physics = None
         self.acceleration = 550
         # endregion
+
+    def render_text(self, font, text, line_height, calc_y=0):
+        for line_number, line_text in enumerate(text):
+            text_surf = font.render(line_text, True, BLACK)
+            self.image.blit(text_surf, (self.corner_radius + self.icon_img.get_size()[0] + self.image_padding,
+                                        self.corner_radius + calc_y + line_height * line_number))
 
     def update(self):
         if self.direction == "left":
             time = self.delta_time.get_time()
             self.delta_time.reset_timer()
-            self.remaining_distance = self.remaining_distance * (self.fraction * (time if time > 1 else 1))
+            self.remaining_distance = self.remaining_distance * (self.fraction / (time if time > 1 else 1))
             if round(self.remaining_distance) > 0:
                 self.x = self.dest_x + self.remaining_distance
             else:
@@ -101,9 +113,11 @@ class ToastGroup(pygame.sprite.Group):
         self.toasts = []
         self.padding = 10
 
-    def create_toast(self, toast_text):
+    def create_toast(self, toast_title, toast_text):
         new_toast = ToastNotifier(self.resolution,
-                                  self.padding * (len(self.toasts) + 1) + sum(toast.get_size()[1] for toast in self.toasts),
+                                  self.padding * (len(self.toasts) + 1) + sum(
+                                      toast.get_size()[1] for toast in self.toasts),
+                                  toast_title,
                                   toast_text)
         self.toasts.append(new_toast)
         self.add(new_toast)
@@ -112,14 +126,15 @@ class ToastGroup(pygame.sprite.Group):
         for index, toast in enumerate(self.toasts):
             value = toast.update()
             if value is not None:
+                self.move_up(index)
                 self.toasts[index] = None
-                self.move_up(index + 1)
         self.toasts[:] = [toast for toast in self.toasts if toast is not None]
 
     def move_up(self, index):
-        for i in range(index, len(self.toasts)):
+        height = self.toasts[index].get_size()[1] + self.padding
+        for i in range(index + 1, len(self.toasts)):
             if self.toasts[i] is not None:
-                self.toasts[i].change_y(self.toasts[i].get_size()[1] + self.padding)
+                self.toasts[i].change_y(height)
 
     def send_mouse_pos(self, mouse_pos):
         for toast in self.toasts:

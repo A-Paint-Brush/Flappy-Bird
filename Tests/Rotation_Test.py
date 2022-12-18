@@ -1,10 +1,12 @@
-from os.path import normpath
-from Global import *
-import pygame
 """
-This file is only for testing rotation-centering in pygame. It can be safely deleted because it is not imported by the
+This file is only for testing centered rotation in pygame. It can be safely deleted because it is not imported by the
 rest of the project files.
 """
+from os.path import normpath
+import pygame
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+YELLOW = (222, 216, 149)
 
 
 class Test:
@@ -33,7 +35,7 @@ class Test:
 class Bird:
     def __init__(self, resolution):
         self.resolution = resolution
-        self.image = pygame.image.load(normpath("./Images/flap middle.png")).convert_alpha()
+        self.image = pygame.image.load(normpath("../Images/flap middle.png")).convert_alpha()
         self.surface = self.image
         self.width, self.height = self.image.get_size()
         self.x = round(self.resolution[0] / 2)

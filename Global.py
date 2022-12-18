@@ -1,5 +1,6 @@
 import pygame
 BLACK = (0, 0, 0)
+ORANGE = (255, 160, 20)
 GREY = (209, 209, 209)
 WHITE = (255, 255, 255)
 CYAN = (112, 197, 206)
@@ -39,6 +40,28 @@ def draw_rounded_rect(surface, x, y, width, height, radius, color):
         pygame.draw.circle(surface, color, position, radius, 0)
     pygame.draw.rect(surface, color, [x, y + radius, width, height - radius * 2], 0)
     pygame.draw.rect(surface, color, [x + radius, y, width - radius * 2, height], 0)
+
+
+def estimate_button_size(font, padding, text):
+    text_size = font.size(text)
+    button_height = padding * 2 + text_size[1]
+    corner_radius = button_height / 2
+    button_width = corner_radius * 2 + text_size[0]
+    return button_width, button_height
+
+
+def draw_button(surface, x, y, width, height, font, text, color):
+    text_size = font.size(text)
+    text_surf = font.render(text, True, color)
+    button_height = height
+    corner_radius = button_height / 2
+    button_width = width
+    positions = ([x + corner_radius, y + corner_radius],
+                 [x + button_width - corner_radius, y + corner_radius])
+    for position in positions:
+        pygame.draw.circle(surface, color, position, corner_radius, 0)
+    pygame.draw.rect(surface, color, [x + corner_radius, y, width - corner_radius * 2, button_height], 0)
+    surface.blit(text_surf, (x + (button_width / 2 - text_size[0] / 2), y + (button_height / 2 - text_size[1] / 2)))
 
 
 def word_wrap_text(string, width, font):

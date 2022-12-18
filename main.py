@@ -9,7 +9,6 @@ import Notifier
 import Achievements
 import FPS
 import pygame
-# TODO: Toast notifier (in game) when low frame-rate is detected.
 # TODO: Make the title screen, game over screen, and pause menu.
 # TODO: Screen darkening effect as pause menu slides into view.
 # TODO: Option to hide mouse pointer in the pause menu.
@@ -209,9 +208,6 @@ class MainProc:
             if not self.achievement_list.has_achievement(1):
                 achievement_text = self.achievement_list.get_new_achievement(1)
                 self.notifiers.create_toast(*achievement_text)
-        else:
-            pass
-            # self.fps_counter.stop()
 
     def toggle_rickroll(self):
         if pygame.mixer.get_busy():

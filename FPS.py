@@ -28,7 +28,7 @@ class Counter(pygame.sprite.Sprite):
         return round(1 / (sum(self.fps_data) / len(self.fps_data)))
 
     def update_text(self, new_text):
-        self.image = self.font.render(new_text, False, BLACK)
+        self.image = self.font.render(new_text, True, BLACK)
         self.x = self.resolution[0] - self.image.get_size()[0]
         self.rect = pygame.Rect(self.x, self.y, *self.image.get_size())
 

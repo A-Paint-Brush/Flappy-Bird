@@ -5,9 +5,9 @@ class Storage:
                        1: "You hacking, bro?",
                        2: "Feeling like rollin'?",
                        3: "Potato PC boi!"}
-        self.body_text = {0: "Except in this game, it doesn't allow you cheat. Instead you get *rainbow mode* :)\n"
+        self.body_text = {0: "Except in this game, it doesn't allow you to cheat. Instead you get *rainbow mode* :)\n"
                              "The effect is only visible when the game screen doesn't fit the window size, so if you "
-                             "don't see anything different, drag the window wider or higher.",
+                             "don't see anything different, drag the window wider or taller.",
                           1: "You discovered debug mode! ...But it doesn't allow you to no-clip, it only shows "
                              "hit-boxes and the FPS. Ha ha I fooled you, no hackers are allowed in my game >:)",
                           2: "Honestly, you typed in \"rickroll\". What were you expecting?",

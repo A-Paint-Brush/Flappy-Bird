@@ -5,7 +5,7 @@ import Time
 
 
 class Counter(pygame.sprite.Sprite):
-    def __init__(self, resolution):
+    def __init__(self, resolution: Tuple[int, int]):
         super().__init__()
         self.resolution = resolution
         self.font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 20)
@@ -19,20 +19,20 @@ class Counter(pygame.sprite.Sprite):
         self.rect = None
         self.update_text("-- FPS")
 
-    def push_data(self):
+    def push_data(self) -> None:
         data = self.frame_timer.get_time()
         self.frame_timer.reset_timer()
         self.fps_data.append(data)
 
-    def calc_data(self):
+    def calc_data(self) -> int:
         return round(1 / (sum(self.fps_data) / len(self.fps_data)))
 
-    def update_text(self, new_text):
+    def update_text(self, new_text: str) -> None:
         self.image = self.font.render(new_text, True, BLACK)
         self.x = self.resolution[0] - self.image.get_size()[0]
         self.rect = pygame.Rect(self.x, self.y, *self.image.get_size())
 
-    def tick(self):
+    def tick(self) -> Union[int, None]:
         self.push_data()
         if len(self.fps_data) <= self.storage_length:
             return None
@@ -42,9 +42,9 @@ class Counter(pygame.sprite.Sprite):
             self.update_text("{} FPS".format(fps))
             return fps
 
-    def stop(self):
+    def stop(self) -> None:
         self.fps_data.clear()
         self.update_text("-- FPS")
 
-    def draw(self, surface):
+    def draw(self, surface: pygame.Surface) -> None:
         surface.blit(self.image, (self.x, self.y))

@@ -1,3 +1,4 @@
+from typing import *
 import Time
 import random
 
@@ -12,11 +13,11 @@ class Rainbow:
         self.delay = 0.1
         self.tick_timer = Time.Time()
 
-    def init_rainbow(self):
+    def init_rainbow(self) -> None:
         self.tick_timer.reset_timer()
         self.tick_timer.get_time()
 
-    def tick(self):
+    def tick(self) -> None:
         time = self.tick_timer.get_time()
         self.tick_timer.reset_timer()
         if self.current_rgb == list(self.destination_rgb):
@@ -37,7 +38,7 @@ class Rainbow:
             # Do one step towards destination RGB.
             self.step_color(time)
 
-    def step_color(self, delta_time):
+    def step_color(self, delta_time: float) -> None:
         for color in range(3):
             if self.size_diff[color] == "=":
                 continue
@@ -49,5 +50,5 @@ class Rainbow:
                 if self.current_rgb[color] < self.destination_rgb[color]:
                     self.current_rgb[color] = self.destination_rgb[color]
 
-    def get_color(self):
+    def get_color(self) -> List:
         return self.current_rgb

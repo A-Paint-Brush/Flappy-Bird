@@ -1,15 +1,16 @@
+from typing import *
 import Time
 
 
 class KeySequence:
-    def __init__(self, sequence: tuple[int, ...]):
+    def __init__(self, sequence: Tuple[int]):
         self.correct_keys = sequence
         self.received_keys = []
         self.maximum_delay = 0.5
         self.delay_timer = Time.Time()
         self.delay_timer.reset_timer()
 
-    def push_key(self, key_code: int):
+    def push_key(self, key_code: int) -> bool:
         time = self.delay_timer.get_time()
         if time > self.maximum_delay:
             self.received_keys.clear()

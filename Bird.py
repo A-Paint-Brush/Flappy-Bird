@@ -1,3 +1,10 @@
+# region Type annotation purposes
+import dataclasses
+import Ground
+import Mouse
+import Pipe
+# endregion
+# region Actually needed
 from os.path import normpath
 from Global import *
 import Wiggle
@@ -5,10 +12,11 @@ import Physics
 import math
 import pygame
 import Time
+# endregion
 
 
 class Bird(pygame.sprite.Sprite):
-    def __init__(self, resolution, ground_size):
+    def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__()
         self.costumes = tuple(pygame.image.load(normpath("./Images/{}".format(file))).convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
         self.costume_index = -1
@@ -37,7 +45,7 @@ class Bird(pygame.sprite.Sprite):
         self.starting_rect = self.rect.copy()
         # endregion
 
-    def update_y_pos(self, value):
+    def update_y_pos(self, value: Union[int, float]) -> None:
         """
         Change both the y position with rotation offset (which is needed for collision detection) and the y position
         without rotation offset by the same amount.
@@ -45,15 +53,15 @@ class Bird(pygame.sprite.Sprite):
         self.y += value
         self.real_y += value
 
-    def init_gravity_physics(self):
+    def init_gravity_physics(self) -> None:
         self.physics = Physics.PreciseAcceleration(acceleration=self.gravity_speed)
 
-    def wiggle_tick(self):
+    def wiggle_tick(self) -> None:
         self.y = self.vertical_span + round(self.physics.get_y_pos())
         self.real_y = self.y
         self.rect = pygame.Rect(self.x, self.y, *self.image.get_size())
 
-    def tick(self):
+    def tick(self) -> Tuple[Union[int, float], Union[int, float]]:
         if self.direction == "down":
             movement = self.physics.calc()
             if movement[1] > self.gravity_speed:
@@ -74,7 +82,7 @@ class Bird(pygame.sprite.Sprite):
                 speed = movement[1]
         return speed, total_movement
 
-    def move_collide(self, amount, pipe_group, collide=True):
+    def move_collide(self, amount: Union[int, float], pipe_group: Pipe.PipeGroup, collide: bool) -> Union[Tuple[bool, Union[None, pygame.sprite.Sprite]], None]:
         if not collide:
             self.update_y_pos(amount)
             return None
@@ -85,7 +93,7 @@ class Bird(pygame.sprite.Sprite):
         bounds = self.image.get_bounding_rect()
         for step in range(whole_steps):
             self.update_y_pos(value * 1)
-            # Break the movement into spans of 1 pixels, and do a mask collision after every pixel movement.
+            # Break the movement into spans of 1 pixel, and do a mask collision after every pixel movement.
             self.rect = pygame.Rect(self.x, self.y, bounds.width, bounds.height)
             result = pygame.sprite.spritecollideany(self, pipe_group, collided=collide_function)
             if result is not None:
@@ -100,11 +108,11 @@ class Bird(pygame.sprite.Sprite):
             self.update_y_pos(-value * float_remainder)
             return True, result
 
-    def jump(self):
+    def jump(self) -> None:
         self.direction = "up"
         self.physics = Physics.PreciseDeceleration(self.gravity_speed, self.jump_speed)
 
-    def calc_angle(self, speed, pipe_group, collide=True):
+    def calc_angle(self, speed: Union[int, float], pipe_group: Pipe.PipeGroup, collide: bool) -> Union[Tuple[bool, Union[pygame.sprite.Sprite, None]], None]:
         # x = a' + {(b'-a')/[(b-a)/(c-a)]}
         if speed == 0:
             angle = 0
@@ -120,7 +128,7 @@ class Bird(pygame.sprite.Sprite):
         if not collide:
             self.set_angle(-round(angle))
             return None
-        prev_angle = abs(self.angle)
+        prev_angle = abs(round(self.angle))
         angle = round(angle)
         while prev_angle != angle:
             prev_angle += (1 if prev_angle < angle else -1)
@@ -132,13 +140,14 @@ class Bird(pygame.sprite.Sprite):
                 return True, result
         return False, None
 
-    def set_angle(self, new_angle):
+    def set_angle(self, new_angle: int) -> None:
         self.image = self.costumes[self.calc_costume_num()]  # Reset surface to un-rotated image
         self.angle = new_angle
         self.image = pygame.transform.rotate(self.image, self.angle)  # Rotate surface
         new_size = self.image.get_bounding_rect()
         cropped_surface = pygame.Surface((new_size.width, new_size.height))
-        cropped_surface.set_colorkey(BLACK)
+        cropped_surface.fill(TRANSPARENT)
+        cropped_surface.set_colorkey(TRANSPARENT)
         cropped_surface.blit(self.image, (0, 0), area=new_size)
         self.image = cropped_surface  # Crop the unnecessary extra space added by the rotation
         # Calculate the offset needed to center the image after the rotation
@@ -149,17 +158,18 @@ class Bird(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.x, self.y, new_size.width, new_size.height)
         self.mask = pygame.mask.from_surface(self.image)
 
-    def tick_costume(self, force_update=False):
+    def tick_costume(self, force_update: bool) -> None:
         if self.costume_timer.get_time() > self.costume_switch_delay:
             self.costume_timer.reset_timer()
             self.costume_index += 1
             self.costume_index %= 4
-            # Updating the image is unnecessary once the game is started because set_angle() will do it.
+            # If you are going to call a different method that will update self.image right after calling this method,
+            # pass "False" to the force_update parameter to omit performing the redundant image update.
             if force_update:
                 self.image = self.costumes[self.calc_costume_num()]
                 self.mask = pygame.mask.from_surface(self.image)
 
-    def collision_detection(self, ground_pos):
+    def collision_detection(self, ground_pos: Tuple[Union[int, float], Union[int, float]]) -> Literal[0, 1, 2]:
         """
         Returns an int according to the current collision status.
 
@@ -179,8 +189,108 @@ class Bird(pygame.sprite.Sprite):
         else:
             return 0
 
-    def draw(self, surface, show_hit_box=False):
-        surface.blit(self.image, (self.x, self.y))
-        if show_hit_box:
-            pygame.draw.rect(surface, (0, 0, 0), self.rect, 1)
-            self.mask.to_surface(surface, setcolor=YELLOW, unsetcolor=BLACK)
+    def get_rect(self) -> pygame.Rect:
+        return self.rect
+
+    def get_mask(self) -> pygame.mask.Mask:
+        return self.mask
+
+
+class BirdManager(pygame.sprite.Group):
+    def __init__(self, resolution: Tuple[int, int]):
+        super().__init__()
+        self.resolution = resolution
+        self.spawned = False
+        self.bird_object = None
+        self.z_index = 2
+
+    def click(self,
+              state_data: dataclasses.dataclass,
+              ground_group: Ground.GroundGroup,
+              pipe_group: Pipe.PipeGroup,
+              mouse_object: Mouse.Cursor,
+              mouse_initiated: bool) -> None:
+        if mouse_initiated:
+            if (not self.z_index == mouse_object.get_z_index()) or (not mouse_object.get_button_state(1)):
+                return None
+        if state_data.game_state == "menu":
+            self.spawned = True
+            self.bird_object = Bird(self.resolution, ground_group.get_size())
+            self.add(self.bird_object)
+            state_data.game_state = "waiting"
+        elif state_data.game_state == "waiting":
+            state_data.game_state = "started"
+            pipe_group.generate()
+            self.bird_object.init_gravity_physics()
+            self.bird_object.jump()
+        elif state_data.game_state == "started":
+            self.bird_object.jump()
+        elif state_data.game_state == "dying":
+            pass
+        if mouse_initiated:
+            mouse_object.increment_z_index()  # It's not possible to fail to interact with the bird :)
+        # Note: Interaction with the bird is ignored when game_state == "dying".
+
+    def die(self, state_data: dataclasses.dataclass) -> None:
+        state_data.game_state = "dying"
+        self.bird_object.jump()
+
+    def update(self,
+               ground_group: Ground.GroundGroup,
+               pipe_group: Pipe.PipeGroup,
+               state_data: dataclasses.dataclass) -> None:
+        if state_data.game_state == "menu":
+            pass
+        elif state_data.game_state == "waiting":
+            self.move_ground_tiles(ground_group)
+            self.bird_object.wiggle_tick()
+            self.bird_object.tick_costume(force_update=True)
+        elif state_data.game_state == "started":
+            collision_type, collided_pipe = self.update_all_related_objects(ground_group, pipe_group)
+            if collision_type in (1, 2, 3):
+                collided_pipe.init_flash()
+                pipe_group.set_flash_pipe(collided_pipe)
+                self.die(state_data)
+            elif collision_type == 4:
+                self.die(state_data)
+        elif state_data.game_state == "dying":
+            speed, movement = self.bird_object.tick()
+            self.bird_object.move_collide(movement, None, collide=False)
+            self.bird_object.calc_angle(speed, None, collide=False)  # Collision detection is no longer needed after death.
+            pipe_group.update_flash_pipe()
+
+    def update_all_related_objects(self,
+                                   ground_group: Ground.GroundGroup,
+                                   pipe_group: Pipe.PipeGroup) -> Tuple[int, Union[None, Pipe.Pipe]]:
+        self.bird_object.tick_costume(True)
+        speed, movement = self.bird_object.tick()
+        vertical_collide = self.bird_object.move_collide(movement, pipe_group, True)
+        if vertical_collide[0]:
+            print("Vertical movement collision")
+            return 1, vertical_collide[1]
+        rotation_collide = self.bird_object.calc_angle(speed, pipe_group, True)
+        if rotation_collide[0]:
+            print("Rotation collision")
+            return 2, rotation_collide[1]
+        amount = self.move_ground_tiles(ground_group)
+        pipe_collide = pipe_group.move(amount, self.bird_object)
+        if pipe_collide[0]:
+            print("Pipe movement collision")
+            return 3, pipe_collide[1]
+        pipe_group.kill_colliding()
+        ground_collide = self.bird_object.collision_detection(ground_group.get_pos())
+        if ground_collide == 1:
+            print("Ground collision")
+            return 4, None
+        return 0, None
+
+    def move_ground_tiles(self, ground_group: Ground.GroundGroup) -> Union[int, float]:
+        amount = ground_group.move()
+        ground_group.kill_colliding()
+        return amount
+
+    def draw_(self, surface: pygame.Surface, debug: bool) -> None:
+        self.draw(surface)
+        if debug:
+            pygame.draw.rect(surface, BLACK, self.bird_object.get_rect(), 1)
+            self.bird_object.get_mask().to_surface(surface, setcolor=YELLOW, unsetcolor=BLACK)

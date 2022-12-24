@@ -1,18 +1,23 @@
-import pygame
+"""
+This file stores constants and static functions used throughout the project.
+"""
+from typing import *
+import pygame.transform
 BLACK = (0, 0, 0)
 ORANGE = (255, 160, 20)
 GREY = (209, 209, 209)
 WHITE = (255, 255, 255)
 CYAN = (112, 197, 206)
 YELLOW = (222, 216, 149)
+TRANSPARENT = (1, 1, 1)
 
 
-def collide_function(sprite1, sprite2):
+def collide_function(sprite1: pygame.sprite.Sprite, sprite2: pygame.sprite.Sprite) -> bool:
     result = pygame.sprite.collide_mask(sprite1, sprite2)
     return result is not None
 
 
-def resize_surf(display_surf, size):
+def resize_surf(display_surf: pygame.Surface, size: List) -> pygame.Surface:
     current_size = display_surf.get_size()
     new_size = [0, 0]
     if current_size[0] * (size[1] / current_size[1]) < size[0]:
@@ -24,14 +29,23 @@ def resize_surf(display_surf, size):
     return pygame.transform.scale(display_surf, new_size)
 
 
-def resize_mouse_pos(pos, fixed_size, current_size, resized_surf):
+def resize_mouse_pos(pos: Tuple[int, int],
+                     fixed_size: Tuple[int, int],
+                     current_size: List,
+                     resized_surf: Tuple[int, int]) -> Tuple[float, float]:
     offset_pos = (pos[0] - ((current_size[0] - resized_surf[0]) / 2),
                   pos[1] - ((current_size[1] - resized_surf[1]) / 2))
     return (fixed_size[0] * (offset_pos[0] / resized_surf[0])),\
            (fixed_size[1] * (offset_pos[1] / resized_surf[1]))
 
 
-def draw_rounded_rect(surface, x, y, width, height, radius, color):
+def draw_rounded_rect(surface: pygame.Surface,
+                      x: int,
+                      y: int,
+                      width: Union[int, float],
+                      height: Union[int, float],
+                      radius: int,
+                      color: Tuple[int, int, int]) -> None:
     positions = ([x + radius, y + radius],
                  [x + width - radius, y + radius],
                  [x + radius, y + height - radius],
@@ -42,7 +56,7 @@ def draw_rounded_rect(surface, x, y, width, height, radius, color):
     pygame.draw.rect(surface, color, [x + radius, y, width - radius * 2, height], 0)
 
 
-def estimate_button_size(font, padding, text):
+def estimate_button_size(font: pygame.font.Font, padding: int, text: str) -> Tuple[float, int]:
     text_size = font.size(text)
     button_height = padding * 2 + text_size[1]
     corner_radius = button_height / 2
@@ -50,9 +64,16 @@ def estimate_button_size(font, padding, text):
     return button_width, button_height
 
 
-def draw_button(surface, x, y, width, height, font, text, color):
+def draw_button(surface: pygame.Surface,
+                x: int,
+                y: int,
+                width: float,
+                height: int,
+                font: pygame.font.Font,
+                text: str,
+                color: Tuple[int, int, int]) -> None:
     text_size = font.size(text)
-    text_surf = font.render(text, True, color)
+    text_surf = font.render(text, True, BLACK)
     button_height = height
     corner_radius = button_height / 2
     button_width = width
@@ -64,7 +85,9 @@ def draw_button(surface, x, y, width, height, font, text, color):
     surface.blit(text_surf, (x + (button_width / 2 - text_size[0] / 2), y + (button_height / 2 - text_size[1] / 2)))
 
 
-def word_wrap_text(string, width, font):
+# Only after writing this function did I discover that Python actually has a built-in module, named "textwrap", for
+# word-wrapping text. Oof
+def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]:
     words = string.split(" ")
     wrapped_lines = []
     current_line = []

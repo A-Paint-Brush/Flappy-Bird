@@ -7,6 +7,7 @@ import pygame
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 YELLOW = (222, 216, 149)
+TRANSPARENT = (1, 1, 1)
 
 
 class Test:
@@ -23,7 +24,7 @@ class Test:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_run = False
-            self.screen.fill(WHITE)
+            self.screen.fill(YELLOW)
             self.bird.tick()
             self.bird.draw(self.screen)
             self.bird.draw_hit_box(self.screen)
@@ -35,7 +36,7 @@ class Test:
 class Bird:
     def __init__(self, resolution):
         self.resolution = resolution
-        self.image = pygame.image.load(normpath("../Images/flap middle.png")).convert_alpha()
+        self.image = pygame.image.load(normpath("./Images/flap middle.png")).convert_alpha()
         self.surface = self.image
         self.width, self.height = self.image.get_size()
         self.x = round(self.resolution[0] / 2)
@@ -58,7 +59,8 @@ class Bird:
             self.surface = pygame.transform.rotate(self.image, self.angle)
             new_size = self.surface.get_bounding_rect()
             cropped_surface = pygame.Surface((new_size.width, new_size.height))
-            cropped_surface.set_colorkey(BLACK)
+            cropped_surface.fill(TRANSPARENT)
+            cropped_surface.set_colorkey(TRANSPARENT)
             cropped_surface.blit(self.surface, (0, 0), area=new_size)
             self.surface = cropped_surface
             self.x = self.constant_x + round((self.starting_rect.width - new_size.width) / 2)

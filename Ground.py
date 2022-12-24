@@ -1,10 +1,11 @@
+from typing import *
 from os.path import normpath
 import pygame
 import Time
 
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, x_pos, resolution):
+    def __init__(self, x_pos: int, resolution: Tuple[int, int]):
         super().__init__()
         self.image = pygame.image.load(normpath("./Images/Ground.png")).convert_alpha()
         self.width, self.height = self.image.get_size()
@@ -12,23 +13,23 @@ class Tile(pygame.sprite.Sprite):
         self.y = resolution[1] - self.height
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
-    def get_size(self):
+    def get_size(self) -> Tuple[int, int]:
         return self.width, self.height
 
-    def get_pos(self):
+    def get_pos(self) -> Tuple[int, int]:
         return self.x, self.y
 
-    def get_rect(self):
+    def get_rect(self) -> pygame.Rect:
         return self.rect
 
-    def draw(self, surface):
+    def draw(self, surface: pygame.Surface) -> None:
         surface.blit(self.image, (self.x, self.y))
 
-    def update(self, movement):
+    def update(self, movement: float) -> None:
         self.x += movement
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
-    def check_collision(self):
+    def check_collision(self) -> bool:
         if self.x < -self.width:
             self.kill()
             return True
@@ -37,7 +38,7 @@ class Tile(pygame.sprite.Sprite):
 
 
 class GroundGroup(pygame.sprite.Group):
-    def __init__(self, resolution):
+    def __init__(self, resolution: Tuple[int, int]):
         super().__init__()
         self.resolution = resolution
         self.__delta_x = -100  # Production movement: -100, Debug movement: -40
@@ -46,23 +47,23 @@ class GroundGroup(pygame.sprite.Group):
         self.__frame_timer = Time.Time()
         self.__frame_timer.reset_timer()
 
-    def generate(self):
+    def generate(self) -> None:
         self.sprite_objects = [Tile(x, self.resolution) for x in range(self.resolution[0], -self.temp.get_size()[0], -self.temp.get_size()[0])]
         self.add(self.sprite_objects)
 
-    def get_size(self):
+    def get_size(self) -> Tuple[int, int]:
         return self.temp.get_size()
 
-    def get_pos(self):
+    def get_pos(self) -> Tuple[int, int]:
         return self.temp.get_pos()
 
-    def move(self):
+    def move(self) -> float:
         movement = (self.__delta_x * self.__frame_timer.get_time())
         self.update(movement)
         self.__frame_timer.reset_timer()
         return movement
 
-    def kill_colliding(self):
+    def kill_colliding(self) -> None:
         self.sprite_objects[:] = [tile for tile in self.sprite_objects if not tile.check_collision()]
         if len(self.sprite_objects) == 0:
             self.generate()

@@ -1,3 +1,4 @@
+import Mouse
 from os.path import normpath
 from Global import *
 import pygame
@@ -5,7 +6,14 @@ import Time
 
 
 class Button(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, font, text, identifier):
+    def __init__(self,
+                 x: Union[int, float],
+                 y: Union[int, float],
+                 width: Union[int, float],
+                 height: Union[int, float],
+                 font: pygame.font.Font,
+                 text: str,
+                 identifier: int):
         super().__init__()
         self.id = identifier  # Stores the index of the current class instance in the button list
         self.font = font
@@ -18,12 +26,12 @@ class Button(pygame.sprite.Sprite):
         # region Setup
         self.original_width = width
         self.original_height = height
-        self.original_surface = pygame.Surface(self.original_width, self.original_height)
-        self.original_surface.fill(WHITE)
-        self.original_surface.set_colorkey(WHITE)
+        self.original_surface = pygame.Surface((self.original_width, self.original_height))
+        self.original_surface.fill(TRANSPARENT)
+        self.original_surface.set_colorkey(TRANSPARENT)
         draw_button(self.original_surface,
-                    self.x,
-                    self.y,
+                    0,
+                    0,
                     self.original_width,
                     self.original_height,
                     self.font,
@@ -33,31 +41,30 @@ class Button(pygame.sprite.Sprite):
         # endregion
         self.new_width = self.original_width
         self.new_height = self.original_height
-        self.max_width = self.original_width + 30
+        self.max_width = self.original_width + 60
         self.min_width = self.original_width
-        self.reducing_fraction = 0.92
+        self.reducing_fraction = 0.8
         self.aspect_ratio = self.original_height / self.original_width
         self.rect = pygame.Rect(self.x, self.y, self.original_width, self.original_height)
         self.mask = pygame.mask.from_surface(self.image)
-        self.mode = "idle"  # Literal["small", "large", "dilating", "shrinking"]
+        self.mode = "small"  # Literal["small", "large", "dilating", "shrinking"]
         self.delta_timer = Time.Time()
 
-    def set_size(self, new_size):
-        self.new_width = new_size
-        self.new_height = self.new_width * self.aspect_ratio
+    def set_size(self, new_size: float) -> None:
+        self.new_width = round(new_size)
+        self.new_height = round(self.new_width * self.aspect_ratio)
         offset_x = round((self.original_width - self.new_width) / 2)
         offset_y = round((self.original_height - self.new_height) / 2)
         self.x = self.real_x + offset_x
         self.y = self.real_y + offset_y
-        self.image = pygame.Surface(self.new_width, self.new_height)
-        pygame.transform.scale(self.original_surface, (self.new_width, self.new_height), dest_surface=self.image)
+        self.image = pygame.transform.scale(self.original_surface, (self.new_width, self.new_height))
         self.rect = pygame.Rect(self.x, self.y, self.new_width, self.new_height)
         self.mask = pygame.mask.from_surface(self.image)
 
-    def calc_physics(self, delta_time, mode):
-        return (self.max_width - self.new_width if mode == "dilating" else self.new_width - self.min_width) * (self.reducing_fraction / (delta_time if delta_time > 1 else 1))
+    def calc_physics(self, delta_time: float, mode: Literal["dilating", "shrinking"]) -> float:
+        return self.original_width + (self.max_width - self.new_width if mode == "dilating" else self.new_width - self.min_width) * (self.reducing_fraction / (delta_time if delta_time > 1 else 1))
 
-    def change_size(self, direction):
+    def change_size(self, direction: Literal["increase", "decrease"]) -> bool:
         """
         Updates button size and returns True if minimum size has been reached.
         """
@@ -82,14 +89,16 @@ class Button(pygame.sprite.Sprite):
             self.mode = "small"
             return True
 
-    def get_id(self):
+    def get_id(self) -> int:
         return self.id
 
 
 class ButtonList(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
-        self.font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 13)
+        self.z_index = 2
+        self.clicked = False
+        self.font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 23)
         self.max_button_size = [0, 0]  # Format: [max_width, max_height]
         self.padding = 20  # Without any padding, the button will be only large enough to fit its text
         self.unmapped_buttons = []  # Holds the data that hasn't been passed to a class initializer yet
@@ -97,15 +106,22 @@ class ButtonList(pygame.sprite.Group):
         self.callback_funcs = []  # Holds the references to the functions that each button has to call when clicked
         self.pending_shrink = []  # Holds button object instances that has been dilated
 
-    def create_button(self, position, text, callback):
-        self.unmapped_buttons.append((position, text, callback))
-        est_size = estimate_button_size(self.font, self.padding, text)
-        for index in range(2):
-            # If the current button is larger than the max button size stored so far, update max button size.
-            if est_size[index] > self.max_button_size[index]:
-                self.max_button_size[index] = est_size[index]
+    def get_max_size(self, text_labels: Tuple[str, ...]) -> List:
+        for label in text_labels:
+            est_size = estimate_button_size(self.font, self.padding, label)
+            for index in range(2):
+                # If the current button is larger than the max button size stored so far, update max button size.
+                if est_size[index] > self.max_button_size[index]:
+                    self.max_button_size[index] = est_size[index]
+        return self.max_button_size
 
-    def pack_buttons(self):
+    def create_button(self,
+                      position: Tuple[Union[int, float], Union[int, float]],
+                      text: str,
+                      callback: Callable[[], None]) -> None:
+        self.unmapped_buttons.append((position, text, callback))
+
+    def pack_buttons(self) -> None:
         for index, data in enumerate(self.unmapped_buttons):
             temp_object = Button(*data[0], *self.max_button_size, self.font, data[1], index)
             self.button_list.append(temp_object)
@@ -113,18 +129,24 @@ class ButtonList(pygame.sprite.Group):
         self.unmapped_buttons.clear()
         self.add(self.button_list)
 
-    def update(self, mouse_object, mouse_down):  # This method should be called every frame
-        """
-        Returns the ID of the button that the mouse cursor is hovering over of
-        """
+    def update(self, mouse_object: Mouse.Cursor) -> None:  # This method should be called every frame
+        if not self.z_index == mouse_object.get_z_index():
+            return None
         # 'hovered_button' returns the class object representing the button that the mouse is hovering over of.
         hovered_button = pygame.sprite.spritecollideany(mouse_object, self, collided=collide_function)
         excepted_button = None
-        if hovered_button is not None:
+        if hovered_button is None:
+            mouse_object.increment_z_index()
+        else:
             hovered_button.change_size("increase")
             excepted_button = hovered_button.get_id()
             if not hovered_button.get_id() in self.pending_shrink:
-                self.pending_shrink.append(hovered_button.get_id())
+                self.pending_shrink.append(hovered_button)
+            if mouse_object.get_button_state(1) and (not self.clicked):
+                self.clicked = True
+                self.callback_funcs[hovered_button.get_id()]()
+            elif not mouse_object.get_button_state(1):
+                self.clicked = False
         for index, button in enumerate(self.pending_shrink):
             if button.get_id() == excepted_button:
                 continue
@@ -133,5 +155,3 @@ class ButtonList(pygame.sprite.Group):
                 if shrunk:
                     self.pending_shrink[index] = None
         self.pending_shrink[:] = [button for button in self.pending_shrink if button is not None]
-        if mouse_down and (hovered_button is not None):
-            self.callback_funcs[hovered_button.get_id()]()

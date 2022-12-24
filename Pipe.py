@@ -8,7 +8,7 @@ import Time
 
 
 class Pipe(Ground.Tile):
-    def __init__(self, x_pos, resolution, ground_size):
+    def __init__(self, x_pos: int, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__(x_pos, resolution)
         self.pipe_image = pygame.image.load(normpath("./Images/Pipe.png")).convert_alpha()
         self.width, self.height = self.pipe_image.get_size()
@@ -40,14 +40,14 @@ class Pipe(Ground.Tile):
         self.rect = pygame.Rect(self.x, self.y, self.width, self.resolution[1])
         self.mask = pygame.mask.from_surface(self.image)
 
-    def update(self, movement):
+    def update(self, movement: Union[int, float]) -> None:
         self.x += movement
         self.rect = pygame.Rect(self.x, self.y, self.width, self.resolution[1])
 
-    def init_flash(self):
+    def init_flash(self) -> None:
         self.flash_timer.reset_timer()
 
-    def flash_tick(self):
+    def flash_tick(self) -> bool:
         delta_time = self.flash_timer.get_time()
         self.flash_timer.reset_timer()
         self.image = self.original_surface.copy()
@@ -57,21 +57,29 @@ class Pipe(Ground.Tile):
             self.flash_movement = -self.flash_movement
         elif self.brightness <= 0:
             self.brightness = 0
-        self.image.set_colorkey((self.brightness,) * 3, pygame.RLEACCEL)
+        self.image.set_colorkey((self.brightness,) * 3)
         self.image.fill((self.brightness,) * 3, special_flags=pygame.BLEND_RGB_ADD)
         return self.brightness == 0
 
 
 class PipeGroup(Ground.GroundGroup):
-    def __init__(self, resolution, ground_size):
+    def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__(resolution)
         self.resolution = resolution
         self.ground_size = ground_size
         self.temp = Pipe(-1, resolution, self.ground_size)
         self.pipe_distance = 170
         self.collide_init = False
+        self.flash_pipe = None  # Stores the pipe object that has to be flashed.
 
-    def generate(self):
+    def set_flash_pipe(self, pipe_obj: Pipe) -> None:
+        self.flash_pipe = pipe_obj
+
+    def update_flash_pipe(self) -> None:
+        if self.flash_pipe is not None:
+            self.flash_pipe.flash_tick()
+
+    def generate(self) -> None:
         if self.collide_init:
             self.sprite_objects = [Pipe(x, self.resolution, self.ground_size) for x in range(self.resolution[0], -self.temp.get_size()[0], -(self.temp.get_size()[0] + self.pipe_distance))]
             self.add(self.sprite_objects)
@@ -79,7 +87,8 @@ class PipeGroup(Ground.GroundGroup):
             self.sprite_objects.append(Pipe(self.resolution[0], self.resolution, self.ground_size))
             self.add(self.sprite_objects[-1])
 
-    def move(self, distance=None, bird=None):
+    def move(self, distance: float = None,
+             bird: pygame.sprite.Sprite = None) -> Tuple[bool, Union[pygame.sprite.Sprite, None]]:
         # The value must be converted to positive first, because floor() works differently on negative values.
         whole_steps = math.floor(abs(distance))  # Break the number into an integer and a float
         float_remainder = abs(distance) - whole_steps
@@ -100,7 +109,7 @@ class PipeGroup(Ground.GroundGroup):
             self.update(1)
             return True, result
 
-    def kill_colliding(self):
+    def kill_colliding(self) -> None:
         if not self.collide_init:
             self.collide_init = True
         self.sprite_objects[:] = [pipe for pipe in self.sprite_objects if not pipe.check_collision()]
@@ -111,6 +120,6 @@ class PipeGroup(Ground.GroundGroup):
             self.sprite_objects.insert(0, Pipe(self.sprite_objects[0].get_pos()[0] + self.temp.get_size()[0] + self.pipe_distance, self.resolution, self.ground_size))
             self.add(self.sprite_objects[0])
 
-    def draw_hit_box(self, surface):
+    def draw_hit_box(self, surface: pygame.Surface) -> None:
         for pipe in self.sprite_objects:
             pygame.draw.rect(surface, BLACK, pipe.get_rect(), 1)

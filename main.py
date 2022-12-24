@@ -38,15 +38,7 @@ class MainProc:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        menu_labels = ("Start", "How to Play", "Settings")
-        self.menu_buttons = Widgets.ButtonList()
-        max_size = self.menu_buttons.get_max_size(menu_labels)
-        for y in range(len(menu_labels)):
-            self.menu_buttons.create_button((self.fixed_resolution[0] / 2 - max_size[0] / 2, (max_size[1] + 20) * y + 50),
-                                            menu_labels[y],
-                                            functools.partial(print,
-                                                              "Button \"{}\" was pressed!".format(menu_labels[y])))
-        self.menu_buttons.pack_buttons()
+        self.ui_widgets = Widgets.WidgetGroup(2)
         # endregion
         # region Key Sequences
         # Unfortunately, the Pygame docs recommend using the 'pygame.K_x' variables instead of hard-coding integers.
@@ -126,7 +118,7 @@ class MainProc:
             self.mouse_obj.reset_z_index()  # Set mouse event processing z-order back to top.
             self.notifiers.send_mouse_pos(self.mouse_obj)
             if self.state_data.game_state == "menu":
-                self.menu_buttons.update(self.mouse_obj)
+                self.ui_widgets.update(self.mouse_obj)
                 self.tiles_group.move()
                 self.tiles_group.kill_colliding()
             elif self.state_data.game_state in ("waiting", "started", "dying"):
@@ -142,7 +134,7 @@ class MainProc:
             self.display_surface.blit(self.background, (0, 0))
             self.tiles_group.draw(self.display_surface)
             if self.state_data.game_state == "menu":
-                self.menu_buttons.draw(self.display_surface)
+                self.ui_widgets.draw(self.display_surface)
             elif self.state_data.game_state in ("started", "dying"):
                 self.pipe_group.draw(self.display_surface)
                 if self.debug:

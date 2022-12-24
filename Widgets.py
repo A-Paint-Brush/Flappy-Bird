@@ -1,157 +1,86 @@
-import Mouse
-from os.path import normpath
 from Global import *
-import pygame
+import Mouse
 import Time
+import pygame
 
 
-class Button(pygame.sprite.Sprite):
+class BaseWidget(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event):
+        pass
+
+
+class AnimatedSurface(BaseWidget):
     def __init__(self,
                  x: Union[int, float],
                  y: Union[int, float],
-                 width: Union[int, float],
-                 height: Union[int, float],
-                 font: pygame.font.Font,
-                 text: str,
-                 identifier: int):
+                 surface: pygame.Surface,
+                 callback: Union[Callable[[], None], None]):
         super().__init__()
-        self.id = identifier  # Stores the index of the current class instance in the button list
-        self.font = font
-        self.label_text = text
-        # The x and y position without resize offset.
-        self.real_x = x
+        # region Setup
+        self.real_x = x  # The x and y position without resize offset.
         self.real_y = y
         self.x = self.real_x
         self.y = self.real_y
-        # region Setup
-        self.original_width = width
-        self.original_height = height
-        self.original_surface = pygame.Surface((self.original_width, self.original_height))
-        self.original_surface.fill(TRANSPARENT)
-        self.original_surface.set_colorkey(TRANSPARENT)
-        draw_button(self.original_surface,
-                    0,
-                    0,
-                    self.original_width,
-                    self.original_height,
-                    self.font,
-                    self.label_text,
-                    ORANGE)
+        self.original_surface = surface
+        self.original_width, self.original_height = self.original_surface.get_size()
         self.image = self.original_surface.copy()
         # endregion
-        self.new_width = self.original_width
-        self.new_height = self.original_height
+        self.current_width = self.original_width
+        self.current_height = self.original_height
         self.max_width = self.original_width + 60
         self.min_width = self.original_width
         self.reducing_fraction = 0.8
         self.aspect_ratio = self.original_height / self.original_width
+        self.resize_state = "small"  # Literal["small", "large", "dilating", "shrinking"]
+        self.callback_func = callback  # Stores the reference to the function to call when clicked.
+        self.delta_timer = Time.Time()
         self.rect = pygame.Rect(self.x, self.y, self.original_width, self.original_height)
         self.mask = pygame.mask.from_surface(self.image)
-        self.mode = "small"  # Literal["small", "large", "dilating", "shrinking"]
-        self.delta_timer = Time.Time()
+
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
+        collide = pygame.sprite.collide_mask(self, mouse_obj)
+        if collide is None:
+            self.change_size("decrease")
+        else:
+            self.change_size("increase")
+        if mouse_obj.get_button_state(1) and (self.callback_func is not None):
+            self.callback_func()
 
     def set_size(self, new_size: float) -> None:
-        self.new_width = round(new_size)
-        self.new_height = round(self.new_width * self.aspect_ratio)
-        offset_x = round((self.original_width - self.new_width) / 2)
-        offset_y = round((self.original_height - self.new_height) / 2)
+        self.current_width = round(new_size)
+        self.current_height = round(self.current_width * self.aspect_ratio)
+        offset_x = round((self.original_width - self.current_width) / 2)
+        offset_y = round((self.original_height - self.current_height) / 2)
         self.x = self.real_x + offset_x
         self.y = self.real_y + offset_y
-        self.image = pygame.transform.scale(self.original_surface, (self.new_width, self.new_height))
-        self.rect = pygame.Rect(self.x, self.y, self.new_width, self.new_height)
+        self.image = pygame.transform.scale(self.original_surface, (self.current_width, self.current_height))
+        self.rect = pygame.Rect(self.x, self.y, self.current_width, self.current_height)
         self.mask = pygame.mask.from_surface(self.image)
 
     def calc_physics(self, delta_time: float, mode: Literal["dilating", "shrinking"]) -> float:
-        return self.original_width + (self.max_width - self.new_width if mode == "dilating" else self.new_width - self.min_width) * (self.reducing_fraction / (delta_time if delta_time > 1 else 1))
+        return self.original_width + (self.max_width - self.current_width if mode == "dilating" else self.current_width - self.min_width) * (self.reducing_fraction / (delta_time if delta_time > 1 else 1))
 
-    def change_size(self, direction: Literal["increase", "decrease"]) -> bool:
-        """
-        Updates button size and returns True if minimum size has been reached.
-        """
-        if self.mode == "small" and direction == "decrease":
-            return False
-        if self.mode == "large" and direction == "increase":
-            return False
+    def change_size(self, direction: Literal["increase", "decrease"]) -> None:
+        if (self.resize_state == "small" and direction == "decrease") or (self.resize_state == "large" and direction == "increase"):
+            return None
         skip_delta_time = False
-        if self.mode == "small" and direction == "increase":
+        if self.resize_state in ("small", "large"):
             skip_delta_time = True
-            self.mode = "dilating"
-        elif self.mode == "large" and direction == "decrease":
-            skip_delta_time = True
-            self.mode = "shrinking"
-        temp_width = self.calc_physics(1 if skip_delta_time else self.delta_timer.get_time(), self.mode)
+        self.resize_state = {"increase": "dilating", "decrease": "shrinking"}[direction]
+        temp_width = self.calc_physics(1 if skip_delta_time else self.delta_timer.get_time(), self.resize_state)
         self.delta_timer.reset_timer()
         self.set_size(temp_width)
-        if direction == "increase" and temp_width == self.max_width:
-            self.mode = "large"
-            return False
-        elif direction == "decrease" and temp_width == self.min_width:
-            self.mode = "small"
-            return True
-
-    def get_id(self) -> int:
-        return self.id
+        if temp_width == self.max_width:
+            self.resize_state = "large"
+        elif temp_width == self.min_width:
+            self.resize_state = "small"
 
 
-class ButtonList(pygame.sprite.Group):
-    def __init__(self):
+class WidgetGroup(pygame.sprite.Group):
+    def __init__(self, z_index: int):
         super().__init__()
-        self.z_index = 2
-        self.clicked = False
-        self.font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 23)
-        self.max_button_size = [0, 0]  # Format: [max_width, max_height]
-        self.padding = 20  # Without any padding, the button will be only large enough to fit its text
-        self.unmapped_buttons = []  # Holds the data that hasn't been passed to a class initializer yet
-        self.button_list = []  # Holds the object instances of all buttons
-        self.callback_funcs = []  # Holds the references to the functions that each button has to call when clicked
-        self.pending_shrink = []  # Holds button object instances that has been dilated
-
-    def get_max_size(self, text_labels: Tuple[str, ...]) -> List:
-        for label in text_labels:
-            est_size = estimate_button_size(self.font, self.padding, label)
-            for index in range(2):
-                # If the current button is larger than the max button size stored so far, update max button size.
-                if est_size[index] > self.max_button_size[index]:
-                    self.max_button_size[index] = est_size[index]
-        return self.max_button_size
-
-    def create_button(self,
-                      position: Tuple[Union[int, float], Union[int, float]],
-                      text: str,
-                      callback: Callable[[], None]) -> None:
-        self.unmapped_buttons.append((position, text, callback))
-
-    def pack_buttons(self) -> None:
-        for index, data in enumerate(self.unmapped_buttons):
-            temp_object = Button(*data[0], *self.max_button_size, self.font, data[1], index)
-            self.button_list.append(temp_object)
-            self.callback_funcs.append(data[2])
-        self.unmapped_buttons.clear()
-        self.add(self.button_list)
-
-    def update(self, mouse_object: Mouse.Cursor) -> None:  # This method should be called every frame
-        if not self.z_index == mouse_object.get_z_index():
-            return None
-        # 'hovered_button' returns the class object representing the button that the mouse is hovering over of.
-        hovered_button = pygame.sprite.spritecollideany(mouse_object, self, collided=collide_function)
-        excepted_button = None
-        if hovered_button is None:
-            mouse_object.increment_z_index()
-        else:
-            hovered_button.change_size("increase")
-            excepted_button = hovered_button.get_id()
-            if not hovered_button.get_id() in self.pending_shrink:
-                self.pending_shrink.append(hovered_button)
-            if mouse_object.get_button_state(1) and (not self.clicked):
-                self.clicked = True
-                self.callback_funcs[hovered_button.get_id()]()
-            elif not mouse_object.get_button_state(1):
-                self.clicked = False
-        for index, button in enumerate(self.pending_shrink):
-            if button.get_id() == excepted_button:
-                continue
-            else:
-                shrunk = button.change_size("decrease")
-                if shrunk:
-                    self.pending_shrink[index] = None
-        self.pending_shrink[:] = [button for button in self.pending_shrink if button is not None]
+        self.z_index = z_index
+        self.child_widgets = []

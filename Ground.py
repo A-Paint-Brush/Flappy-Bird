@@ -2,6 +2,7 @@ from typing import *
 from os.path import normpath
 import pygame
 import Time
+# FIXME: Black lines flash briefly between tiles occasionally.
 
 
 class Tile(pygame.sprite.Sprite):
@@ -21,9 +22,6 @@ class Tile(pygame.sprite.Sprite):
 
     def get_rect(self) -> pygame.Rect:
         return self.rect
-
-    def draw(self, surface: pygame.Surface) -> None:
-        surface.blit(self.image, (self.x, self.y))
 
     def update(self, movement: float) -> None:
         self.x += movement

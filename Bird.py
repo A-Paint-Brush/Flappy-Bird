@@ -18,16 +18,18 @@ import Time
 class Bird(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__()
+        # region Costume Data
         self.costumes = tuple(pygame.image.load(normpath("./Images/{}".format(file))).convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
-        self.costume_index = -1
+        self.image = self.costumes[0]
+        self.costume_index = 0
+        self.costume_dir = 1
         self.costume_switch_delay = 0.2
         self.costume_timer = Time.Time()
         self.costume_timer.reset_timer()
-        self.image = self.costumes[0]
-        self.calc_costume_num = lambda: round((4 * 1 / 4) * abs(((self.costume_index - 4 / 2) % 4) - 4 / 2) - 1 + 1)
+        # endregion
+        # region Physics Variables
         self.x = 70
         self.y = 200
-        # region Physics Variables
         self.gravity_speed = 1200
         self.physics = Wiggle.Wiggle()
         self.vertical_span = round((resolution[1] - ground_size[1]) / 2 - self.physics.max_vertical_movement() / 2)
@@ -141,7 +143,7 @@ class Bird(pygame.sprite.Sprite):
         return False, None
 
     def set_angle(self, new_angle: int) -> None:
-        self.image = self.costumes[self.calc_costume_num()]  # Reset surface to un-rotated image
+        self.image = self.costumes[self.costume_index]  # Reset surface to un-rotated image
         self.angle = new_angle
         self.image = pygame.transform.rotate(self.image, self.angle)  # Rotate surface
         new_size = self.image.get_bounding_rect()
@@ -158,15 +160,25 @@ class Bird(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.x, self.y, new_size.width, new_size.height)
         self.mask = pygame.mask.from_surface(self.image)
 
+    def increment_costume_num(self) -> None:
+        self.costume_index += self.costume_dir
+        if self.costume_index == 0 or self.costume_index == len(self.costumes) - 1:
+            self.costume_dir = -self.costume_dir
+
     def tick_costume(self, force_update: bool) -> None:
-        if self.costume_timer.get_time() > self.costume_switch_delay:
-            self.costume_timer.reset_timer()
-            self.costume_index += 1
-            self.costume_index %= 4
+        time = self.costume_timer.get_time()
+        if time > self.costume_switch_delay:
+            compensation = time - self.costume_switch_delay
+            self.increment_costume_num()
+            if compensation > self.costume_switch_delay:
+                for i in range(math.floor(compensation / self.costume_switch_delay)):
+                    self.increment_costume_num()  # Increment costume.
+                compensation %= self.costume_switch_delay
+            self.costume_timer.force_elapsed_time(compensation)
             # If you are going to call a different method that will update self.image right after calling this method,
             # pass "False" to the force_update parameter to omit performing the redundant image update.
             if force_update:
-                self.image = self.costumes[self.calc_costume_num()]
+                self.image = self.costumes[self.costume_index]
                 self.mask = pygame.mask.from_surface(self.image)
 
     def collision_detection(self, ground_pos: Tuple[Union[int, float], Union[int, float]]) -> Literal[0, 1, 2]:

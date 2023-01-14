@@ -93,11 +93,6 @@ class MainProc:
                 elif event.type == pygame.VIDEORESIZE:
                     if not self.full_screen:
                         self.resize_window(event)
-                elif event.type == pygame.MOUSEMOTION:
-                    self.mouse_obj.set_pos(*resize_mouse_pos(event.pos,
-                                                             self.fixed_resolution,
-                                                             self.current_resolution,
-                                                             self.resized_surface.get_size()))
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.mouse_obj.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
@@ -114,6 +109,10 @@ class MainProc:
                         if self.state_data.game_state in ("waiting", "started"):
                             # Jumping the bird is only allowed during "waiting" or "started", not after death.
                             self.bird.click(self.state_data, self.tiles_group, self.pipe_group, self.mouse_obj, False)
+            self.mouse_obj.set_pos(*resize_mouse_pos(pygame.mouse.get_pos(),
+                                                     self.fixed_resolution,
+                                                     self.current_resolution,
+                                                     self.resized_surface.get_size()))
             # region User Events and Updating Game Objects
             self.mouse_obj.reset_z_index()  # Set mouse event processing z-order back to top.
             self.notifiers.send_mouse_pos(self.mouse_obj)

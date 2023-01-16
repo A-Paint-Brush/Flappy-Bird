@@ -77,7 +77,7 @@ class ToastNotifier(pygame.sprite.Sprite):
                          self.title_font.size("|")[1] * (len(self.title_text) + 1))
 
     def calc_damp(self, delta_time: float) -> None:
-        self.remaining_distance = self.remaining_distance * pow(self.damping, delta_time)
+        self.remaining_distance *= pow(self.damping, delta_time)
 
     def update(self) -> bool:
         """

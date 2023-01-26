@@ -18,6 +18,14 @@ class Cursor(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.mask = pygame.mask.Mask(size=(self.width, self.height), fill=True)
 
+    def copy(self):
+        new_cur = Cursor()
+        for index, button in enumerate(self.buttons, start=1):
+            new_cur.set_button_state(index, button)
+        new_cur.z_index = self.z_index
+        new_cur.set_pos(self.x, self.y)
+        return new_cur
+
     def reset_z_index(self) -> None:
         self.z_index = 1
 

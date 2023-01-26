@@ -9,7 +9,7 @@ GREY = (209, 209, 209)
 WHITE = (255, 255, 255)
 CYAN = (112, 197, 206)
 YELLOW = (222, 216, 149)
-TRANSPARENT = (1, 1, 1)
+TRANSPARENT = (1, 1, 1)  # The color used as the transparent color in 'Surface.set_colorkey()' throughout the project.
 
 
 def collide_function(sprite1: pygame.sprite.Sprite, sprite2: pygame.sprite.Sprite) -> bool:
@@ -85,10 +85,32 @@ def draw_button(surface: pygame.Surface,
     surface.blit(text_surf, (x + (button_width / 2 - text_size[0] / 2), y + (button_height / 2 - text_size[1] / 2)))
 
 
-# Only after writing this function did I discover that Python actually has a built-in module, named "textwrap", for
-# word-wrapping text. Oof
 def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]:
+    # region Wrap words
     words = string.split(" ")
+    shortened_words = []
+    for w in words:
+        if font.size(w)[0] > width:
+            word_chunks = []
+            current_word = list(w)
+            while current_word:
+                current_chunk = []
+                overflow = True
+                while font.size("".join(current_chunk + ["-"]))[0] <= width:
+                    if not current_word:
+                        overflow = False
+                        break
+                    current_chunk.append(current_word.pop(0))
+                if overflow:
+                    current_word.insert(0, current_chunk.pop())
+                word_chunks.append("".join(current_chunk + ["-" if overflow else ""]))
+            for chunk in word_chunks:
+                shortened_words.append(chunk)
+        else:
+            shortened_words.append(w)
+    words = shortened_words
+    # endregion
+    # region Wrap lines
     wrapped_lines = []
     current_line = []
     while words:
@@ -113,4 +135,5 @@ def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]
             words.insert(0, current_line.pop())
         wrapped_lines.append(" ".join(current_line))
         current_line.clear()
+    # endregion
     return wrapped_lines

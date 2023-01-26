@@ -3,13 +3,12 @@ from Global import *
 import math
 import random
 import pygame
-import Ground
 import Time
 
 
-class Pipe(Ground.Tile):
+class Pipe(pygame.sprite.Sprite):
     def __init__(self, x_pos: int, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
-        super().__init__(x_pos, resolution)
+        super().__init__()
         self.pipe_image = pygame.image.load(normpath("./Images/Pipe.png")).convert_alpha()
         self.width, self.height = self.pipe_image.get_size()
         self.resolution = list(resolution)
@@ -26,8 +25,8 @@ class Pipe(Ground.Tile):
         self.top_pipe_pos = (0, self.bottom_pipe_pos[1] - self.gap_distance - self.height)
         self.image = pygame.Surface((self.width, self.resolution[1]))
         # Uses the RLEACCEL flag to improve the blit performance, since the surface is only modified on creation.
-        self.image.set_colorkey(BLACK, pygame.RLEACCEL)
-        self.image.fill(BLACK)
+        self.image.set_colorkey(TRANSPARENT, pygame.RLEACCEL)
+        self.image.fill(TRANSPARENT)
         self.image.blit(self.pipe_image, self.bottom_pipe_pos)
         self.image.blit(pygame.transform.flip(self.pipe_image, False, True), self.top_pipe_pos)
         # region Brightness Variables
@@ -57,17 +56,31 @@ class Pipe(Ground.Tile):
             self.flash_movement = -self.flash_movement
         elif self.brightness <= 0:
             self.brightness = 0
-        self.image.set_colorkey((self.brightness,) * 3)
+        self.image.set_colorkey((self.brightness + TRANSPARENT[0],) * 3)
         self.image.fill((self.brightness,) * 3, special_flags=pygame.BLEND_RGB_ADD)
         return self.brightness == 0
 
+    def check_collision(self) -> bool:
+        if self.x < -self.width:
+            self.kill()
+            return True
+        else:
+            return False
 
-class PipeGroup(Ground.GroundGroup):
+    def get_size(self) -> Tuple[int, int]:
+        return self.width, self.height
+
+    def get_pos(self) -> Tuple[int, int]:
+        return self.x, self.y
+
+
+class PipeGroup(pygame.sprite.Group):
     def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
-        super().__init__(resolution)
+        super().__init__()
         self.resolution = resolution
         self.ground_size = ground_size
         self.temp = Pipe(-1, resolution, self.ground_size)
+        self.sprite_objects = []
         self.pipe_distance = 170
         self.collide_init = False
         self.flash_pipe = None  # Stores the pipe object that has to be flashed.

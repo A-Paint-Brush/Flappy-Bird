@@ -298,7 +298,7 @@ class BirdManager(pygame.sprite.Group):
 
     def move_ground_tiles(self, ground_group: Ground.GroundGroup) -> Union[int, float]:
         amount = ground_group.move()
-        ground_group.kill_colliding()
+        ground_group.reset_pos()
         return amount
 
     def draw_(self, surface: pygame.Surface, debug: bool) -> None:

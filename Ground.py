@@ -2,20 +2,28 @@ from typing import *
 from os.path import normpath
 import pygame
 import Time
-# FIXME: Black lines flash briefly between tiles occasionally.
 
 
-class Tile(pygame.sprite.Sprite):
-    def __init__(self, x_pos: int, resolution: Tuple[int, int]):
+class Ground(pygame.sprite.Sprite):
+    def __init__(self, resolution: Tuple[int, int]):
         super().__init__()
-        self.image = pygame.image.load(normpath("./Images/Ground.png")).convert_alpha()
-        self.width, self.height = self.image.get_size()
-        self.x = x_pos
+        self.tile_image = pygame.image.load(normpath("./Images/Ground.png")).convert_alpha()
+        self.tile_width, self.tile_height = self.tile_image.get_size()
+        self.tile_count = 1
+        while self.tile_width * self.tile_count < resolution[0] + self.tile_width:
+            self.tile_count += 1
+        self.tile_count += 1
+        self.width = self.tile_width * self.tile_count
+        self.height = self.tile_height
+        self.image = pygame.Surface((self.width, self.height))
+        for x in range(self.tile_count):
+            self.image.blit(self.tile_image, (self.tile_width * x, 0))
+        self.x = 0
         self.y = resolution[1] - self.height
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
-    def get_size(self) -> Tuple[int, int]:
-        return self.width, self.height
+    def get_tile_size(self) -> Tuple[int, int]:
+        return self.tile_width, self.tile_height
 
     def get_pos(self) -> Tuple[int, int]:
         return self.x, self.y
@@ -27,45 +35,34 @@ class Tile(pygame.sprite.Sprite):
         self.x += movement
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
-    def check_collision(self) -> bool:
-        if self.x < -self.width:
-            self.kill()
-            return True
-        else:
-            return False
+    def set_x(self, x: float) -> None:
+        self.x = x
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
 
 class GroundGroup(pygame.sprite.Group):
     def __init__(self, resolution: Tuple[int, int]):
         super().__init__()
         self.resolution = resolution
-        self.__delta_x = -100  # Production movement: -100, Debug movement: -40
-        self.temp = Tile(-1, self.resolution)
-        self.sprite_objects = []
-        self.__frame_timer = Time.Time()
-        self.__frame_timer.reset_timer()
-
-    def generate(self) -> None:
-        self.sprite_objects = [Tile(x, self.resolution) for x in range(self.resolution[0], -self.temp.get_size()[0], -self.temp.get_size()[0])]
-        self.add(self.sprite_objects)
+        self.delta_x = -100  # Production movement: -100, Debug movement: -40
+        self.ground_object = Ground(self.resolution)
+        self.add(self.ground_object)
+        self.frame_timer = Time.Time()
+        self.frame_timer.reset_timer()
 
     def get_size(self) -> Tuple[int, int]:
-        return self.temp.get_size()
+        return self.ground_object.get_tile_size()
 
     def get_pos(self) -> Tuple[int, int]:
-        return self.temp.get_pos()
+        return self.ground_object.get_pos()
 
     def move(self) -> float:
-        movement = (self.__delta_x * self.__frame_timer.get_time())
+        movement = (self.delta_x * self.frame_timer.get_time())
         self.update(movement)
-        self.__frame_timer.reset_timer()
+        self.frame_timer.reset_timer()
         return movement
 
-    def kill_colliding(self) -> None:
-        self.sprite_objects[:] = [tile for tile in self.sprite_objects if not tile.check_collision()]
-        if len(self.sprite_objects) == 0:
-            self.generate()
-            return None
-        while self.sprite_objects[0].get_pos()[0] < self.resolution[0] - self.temp.get_size()[0]:
-            self.sprite_objects.insert(0, Tile(self.sprite_objects[0].get_pos()[0] + self.temp.get_size()[0], self.resolution))
-            self.add(self.sprite_objects[0])
+    def reset_pos(self) -> None:
+        # if x < 0: x = -(|x| % width)
+        if self.ground_object.get_pos()[0] < 0:
+            self.ground_object.set_x(-(abs(self.ground_object.get_pos()[0]) % self.ground_object.get_tile_size()[0]))

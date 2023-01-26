@@ -1,7 +1,6 @@
 from os.path import normpath
 from Global import *
 from dataclasses import *
-import functools
 import Mouse
 import Widgets
 import Ground
@@ -38,7 +37,7 @@ class MainProc:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        self.ui_widgets = Widgets.WidgetGroup(2)
+        self.ui_widgets = Widgets.WidgetGroup()
         # endregion
         # region Key Sequences
         # Unfortunately, the Pygame docs recommend using the 'pygame.K_x' variables instead of hard-coding integers.
@@ -74,7 +73,6 @@ class MainProc:
         self.mouse_obj = Mouse.Cursor()
         self.bird = Bird.BirdManager(self.fixed_resolution)
         self.tiles_group = Ground.GroundGroup(self.fixed_resolution)
-        self.tiles_group.generate()
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
         self.notifiers = Notifier.ToastGroup(self.fixed_resolution)
         self.achievement_list = Achievements.Storage()
@@ -117,9 +115,9 @@ class MainProc:
             self.mouse_obj.reset_z_index()  # Set mouse event processing z-order back to top.
             self.notifiers.send_mouse_pos(self.mouse_obj)
             if self.state_data.game_state == "menu":
-                self.ui_widgets.update(self.mouse_obj)
+                self.ui_widgets.update(self.mouse_obj, pygame.event.Event(pygame.JOYBUTTONDOWN))
                 self.tiles_group.move()
-                self.tiles_group.kill_colliding()
+                self.tiles_group.reset_pos()
             elif self.state_data.game_state in ("waiting", "started", "dying"):
                 self.bird.click(self.state_data, self.tiles_group, self.pipe_group, self.mouse_obj, True)
                 self.bird.update(self.tiles_group, self.pipe_group, self.state_data)

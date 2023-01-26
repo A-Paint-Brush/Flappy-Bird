@@ -40,9 +40,10 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.height = self.title_font.size("|")[1] * (len(self.title_text) + 1) + \
                       self.body_font.size("|")[1] * len(self.body_text) + \
                       self.corner_radius * 2
-        self.image = pygame.Surface((self.width, self.height))
-        self.image.set_colorkey(TRANSPARENT, pygame.RLEACCEL)
+        self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
         self.current_color = GREY
+        self.lock = True
+        self.mouse_down = False
         self.render_surface(self.current_color)
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.mask = pygame.mask.from_surface(self.image)
@@ -67,7 +68,7 @@ class ToastNotifier(pygame.sprite.Sprite):
                                         self.corner_radius + calc_y + line_height * line_number))
 
     def render_surface(self, color: Tuple[int, int, int]) -> None:
-        self.image.fill(TRANSPARENT)
+        self.image.fill((0, 0, 0, 0))
         draw_rounded_rect(self.image, 0, 0, self.width, self.height, self.corner_radius, color)
         self.image.blit(self.icon_img, (self.corner_radius, self.corner_radius))
         if self.close_btn_img is not None:
@@ -117,15 +118,22 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.current_color = GREY
         self.render_surface(self.current_color)
 
-    def hover_event(self, mouse_pos: Mouse.Cursor) -> None:
+    def hover_event(self, mouse_obj: Mouse.Cursor) -> None:
         # By the time this function starts, this toast is already being touched by the mouse cursor.
         if self.direction == "idle":  # Only process hover events on the close button when the toast is not moving.
-            if self.close_rect.collidepoint((mouse_pos.get_pos()[0] - self.x, mouse_pos.get_pos()[1] - self.y)):
-                if mouse_pos.get_button_state(1):
+            if self.close_rect.collidepoint((mouse_obj.get_pos()[0] - self.x, mouse_obj.get_pos()[1] - self.y)):
+                self.close_btn_img = self.close_btn_costumes[1]  # Set button costume to 'hovered'
+                if mouse_obj.get_button_state(1) and (not self.lock):
+                    self.mouse_down = True
+                elif (not mouse_obj.get_button_state(1)) and self.mouse_down:
                     self.dismiss()
-                else:
-                    self.close_btn_img = self.close_btn_costumes[1]  # Set button costume to 'hovered'
+                if not mouse_obj.get_button_state(1):
+                    self.lock = False
             else:
+                if not mouse_obj.get_button_state(1):
+                    # The user can cancel the click action by dragging the mouse off the close button and releasing.
+                    self.mouse_down = False
+                self.lock = True
                 self.close_btn_img = self.close_btn_costumes[0]
             if self.close_btn_img is not None:
                 # Re-draw close button with the updated costume.

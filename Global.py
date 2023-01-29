@@ -56,33 +56,38 @@ def draw_rounded_rect(surface: pygame.Surface,
     pygame.draw.rect(surface, color, [x + radius, y, width - radius * 2, height], 0)
 
 
-def estimate_button_size(font: pygame.font.Font, padding: int, text: str) -> Tuple[float, int]:
-    text_size = font.size(text)
-    button_height = padding * 2 + text_size[1]
-    corner_radius = button_height / 2
-    button_width = corner_radius * 2 + text_size[0]
-    return button_width, button_height
-
-
 def draw_button(surface: pygame.Surface,
                 x: int,
                 y: int,
-                width: float,
+                width: int,
                 height: int,
+                border: int,
+                fg: Tuple[int, int, int],
+                bg: Tuple[int, int, int],
                 font: pygame.font.Font,
-                text: str,
-                color: Tuple[int, int, int]) -> None:
-    text_size = font.size(text)
-    text_surf = font.render(text, True, BLACK)
-    button_height = height
-    corner_radius = button_height / 2
-    button_width = width
+                text: str) -> None:
+    current_size = font.size(text)
+    new_size = (width - height - border * 2, height - border * 2)
+    text_surf = font.render(text, True, fg)
+    if current_size[0] * (new_size[1] / current_size[1]) < new_size[0]:
+        text_width = current_size[0] * (new_size[1] / current_size[1])
+        text_height = new_size[1]
+    else:
+        text_width = new_size[0]
+        text_height = current_size[1] * (new_size[0] / current_size[0])
+    text_surf = pygame.transform.scale(text_surf, (text_width, text_height))
+    corner_radius = height / 2
     positions = ([x + corner_radius, y + corner_radius],
-                 [x + button_width - corner_radius, y + corner_radius])
+                 [x + width - corner_radius, y + corner_radius])
     for position in positions:
-        pygame.draw.circle(surface, color, position, corner_radius, 0)
-    pygame.draw.rect(surface, color, [x + corner_radius, y, width - corner_radius * 2, button_height], 0)
-    surface.blit(text_surf, (x + (button_width / 2 - text_size[0] / 2), y + (button_height / 2 - text_size[1] / 2)))
+        pygame.draw.circle(surface, BLACK, position, corner_radius, 0)
+    pygame.draw.rect(surface, BLACK, [x + corner_radius, y, width - corner_radius * 2, height], 0)
+    positions = ([x + corner_radius + border, y + corner_radius],
+                 [x + width - corner_radius - border, y + corner_radius])
+    for position in positions:
+        pygame.draw.circle(surface, bg, position, corner_radius - border, 0)
+    pygame.draw.rect(surface, bg, [x + corner_radius + border, y + border, width - corner_radius * 2 - border * 2, height - border * 2], 0)
+    surface.blit(text_surf, (surface.get_size()[0] / 2 - text_width / 2, surface.get_size()[1] / 2 - text_height / 2))
 
 
 def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]:

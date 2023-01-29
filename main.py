@@ -40,23 +40,10 @@ class MainProc:
         self.ui_widgets = Widgets.WidgetGroup()
         # endregion
         # region Key Sequences
-        # Unfortunately, the Pygame docs recommend using the 'pygame.K_x' variables instead of hard-coding integers.
-        # Therefore, I can't simply generate the key IDs to check for by using 'ord(character)'.
-        self.key_table: Dict[str, int] = {"↑": pygame.K_UP,
-                                          "↓": pygame.K_DOWN,
-                                          "←": pygame.K_LEFT,
-                                          "→": pygame.K_RIGHT,
-                                          "a": pygame.K_a,
-                                          "b": pygame.K_b,
-                                          "c": pygame.K_c,
-                                          "i": pygame.K_i,
-                                          "k": pygame.K_k,
-                                          "l": pygame.K_l,
-                                          "o": pygame.K_o,
-                                          "r": pygame.K_r,
-                                          "x": pygame.K_x,
-                                          "y": pygame.K_y,
-                                          "z": pygame.K_z}
+        self.key_table: Dict[str, int] = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
+        for char in "abciklorxyz":
+            # Generate all needed key codes.
+            exec(f"self.key_table['{char}'] = pygame.K_{char}")
         konami_string = "↑↑↓↓←→←→ba"
         magic_string = "xyzzy"
         rickroll_string = "rickroll"

@@ -1,6 +1,3 @@
-"""
-This file stores constants and static functions used throughout the project.
-"""
 from typing import *
 import pygame.transform
 BLACK = (0, 0, 0)
@@ -9,6 +6,7 @@ GREY = (209, 209, 209)
 WHITE = (255, 255, 255)
 CYAN = (112, 197, 206)
 YELLOW = (222, 216, 149)
+BLUE = (26, 134, 219)
 TRANSPARENT = (1, 1, 1)  # The color used as the transparent color in 'Surface.set_colorkey()' throughout the project.
 
 
@@ -40,20 +38,18 @@ def resize_mouse_pos(pos: Tuple[int, int],
 
 
 def draw_rounded_rect(surface: pygame.Surface,
-                      x: int,
-                      y: int,
-                      width: Union[int, float],
-                      height: Union[int, float],
+                      pos: Tuple[int, int],
+                      size: Tuple[Union[int, float], Union[int, float]],
                       radius: int,
                       color: Tuple[int, int, int]) -> None:
-    positions = ([x + radius, y + radius],
-                 [x + width - radius, y + radius],
-                 [x + radius, y + height - radius],
-                 [x + width - radius, y + height - radius])
+    positions = ([pos[0] + radius, pos[1] + radius],
+                 [pos[0] + size[0] - radius, pos[1] + radius],
+                 [pos[0] + radius, pos[1] + size[1] - radius],
+                 [pos[0] + size[0] - radius, pos[1] + size[1] - radius])
     for position in positions:
         pygame.draw.circle(surface, color, position, radius, 0)
-    pygame.draw.rect(surface, color, [x, y + radius, width, height - radius * 2], 0)
-    pygame.draw.rect(surface, color, [x + radius, y, width - radius * 2, height], 0)
+    pygame.draw.rect(surface, color, [pos[0], pos[1] + radius, size[0], size[1] - radius * 2], 0)
+    pygame.draw.rect(surface, color, [pos[0] + radius, pos[1], size[0] - radius * 2, size[1]], 0)
 
 
 def draw_button(surface: pygame.Surface,

@@ -10,8 +10,8 @@ class ToastNotifier(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int], y_pos: int, message_title: str, message_text: str, id: int):
         super().__init__()
         self.id = id
-        self.title_font = pygame.font.Font(normpath("./Fonts/Arial bold.ttf"), 20)
-        self.body_font = pygame.font.Font(normpath("./Fonts/Arial.ttf"), 18)
+        self.title_font = pygame.font.Font(normpath("Fonts/Arial/bold.ttf"), 20)
+        self.body_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 18)
         self.icon_img = pygame.Surface((50, 50))
         self.icon_img.fill(BLACK)
         self.image_padding = 15
@@ -69,7 +69,7 @@ class ToastNotifier(pygame.sprite.Sprite):
 
     def render_surface(self, color: Tuple[int, int, int]) -> None:
         self.image.fill((0, 0, 0, 0))
-        draw_rounded_rect(self.image, 0, 0, self.width, self.height, self.corner_radius, color)
+        draw_rounded_rect(self.image, (0, 0), (self.width, self.height), self.corner_radius, color)
         self.image.blit(self.icon_img, (self.corner_radius, self.corner_radius))
         if self.close_btn_img is not None:
             self.image.blit(self.close_btn_img, (self.close_btn_x, self.close_btn_y))

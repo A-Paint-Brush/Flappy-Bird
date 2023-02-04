@@ -1,5 +1,65 @@
 from typing import *
+from os.path import normpath
 import pygame
+
+
+class CursorIcons:
+    def __init__(self):
+        # Tuple[Union[int, Tuple[Tuple[int, int], Tuple[str, ...]]], ...]
+        self.cursor_data = (pygame.SYSTEM_CURSOR_ARROW,
+                            pygame.SYSTEM_CURSOR_IBEAM,
+                            ((0, 0),
+                             ("XX                      ",
+                              "X.X                     ",
+                              "X..X                    ",
+                              "X...X                   ",
+                              "X....X                  ",
+                              "X.....X                 ",
+                              "X......X                ",
+                              "X.......X               ",
+                              "X........X              ",
+                              "X.........X             ",
+                              "X......XXXXX            ",
+                              "X...X..X                ",
+                              "X..XX..X                ",
+                              "X.X  X..X               ",
+                              "XX   X..X               ",
+                              "X     X..X              ",
+                              "      X..X              ",
+                              "       X..X             ",
+                              "   X X X..XX X XX       ",
+                              "    X X XXX X X         ",
+                              "   X           XX       ",
+                              "    X         X         ",
+                              "   X           XX       ",
+                              "    X         X         ",
+                              "   X           XX       ",
+                              "    X X X X X X         ",
+                              "   X X X X X X XX       ",
+                              "                        ",
+                              "                        ",
+                              "                        ",
+                              "                        ",
+                              "                        ")))
+        self.cursor_objs = []
+
+    def get_number_of_cursors(self) -> int:
+        return len(self.cursor_data)
+
+    def init_cursors(self) -> None:
+        for cursor in self.cursor_data:
+            if isinstance(cursor, int):
+                self.cursor_objs.append(pygame.cursors.Cursor(cursor))
+            elif isinstance(cursor, tuple):
+                cursor_string = cursor[1]
+                cursor_bytes = pygame.cursors.compile(cursor_string)
+                self.cursor_objs.append(pygame.cursors.Cursor((len(cursor_string[0]), len(cursor_string)),
+                                                              cursor[0],
+                                                              *cursor_bytes))
+
+    def get_cursor(self, index: int = 0) -> pygame.cursors.Cursor:
+        if 0 <= index < len(self.cursor_objs):
+            return self.cursor_objs[index]
 
 
 class Cursor(pygame.sprite.Sprite):
@@ -8,7 +68,7 @@ class Cursor(pygame.sprite.Sprite):
         super().__init__()
         # Stores the button state of each mouse button, in the form of [button1, button2, button3]
         # [left mouse button, mouse wheel button, right mouse button, scroll up, scroll down]
-        self.buttons = [False] * 5
+        self.buttons = [False] * 3
         # Used to determine if the mouse hover event should continue to pass down to the next lower z-level
         self.z_index = 1
         self.x = 0
@@ -49,7 +109,9 @@ class Cursor(pygame.sprite.Sprite):
 
         e.g. To click mouse button 1: set_button_state(1, True)
         """
-        self.buttons[button_number - 1] = state
+        if button_number <= len(self.buttons):
+            self.buttons[button_number - 1] = state
 
-    def get_button_state(self, button_number: int) -> bool:
-        return self.buttons[button_number - 1]
+    def get_button_state(self, button_number: int) -> Optional[bool]:
+        if button_number <= len(self.buttons):
+            return self.buttons[button_number - 1]

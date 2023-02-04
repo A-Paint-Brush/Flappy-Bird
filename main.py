@@ -54,9 +54,18 @@ class MainProc:
         # region Window Creation
         pygame.display.set_caption("Flappy Bird")
         self.display = pygame.display.set_mode(self.fixed_resolution, pygame.RESIZABLE)
+        self.listen_events = [pygame.QUIT,
+                              pygame.VIDEORESIZE,
+                              pygame.MOUSEBUTTONDOWN,
+                              pygame.MOUSEBUTTONUP,
+                              pygame.KEYDOWN,
+                              pygame.KEYUP,
+                              pygame.TEXTINPUT]
+        pygame.event.set_blocked(None)
+        pygame.event.set_allowed(self.listen_events)
         # endregion
         # region Game Objects
-        self.background = pygame.image.load(normpath("./Images/background.png")).convert_alpha()
+        self.background = pygame.image.load(normpath("Images/Sprites/background.png")).convert_alpha()
         self.mouse_obj = Mouse.Cursor()
         self.bird = Bird.BirdManager(self.fixed_resolution)
         self.tiles_group = Ground.GroundGroup(self.fixed_resolution)

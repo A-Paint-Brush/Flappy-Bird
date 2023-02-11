@@ -112,6 +112,6 @@ class Cursor(pygame.sprite.Sprite):
         if button_number <= len(self.buttons):
             self.buttons[button_number - 1] = state
 
-    def get_button_state(self, button_number: int) -> Optional[bool]:
+    def get_button_state(self, button_number: int) -> bool:
         if button_number <= len(self.buttons):
             return self.buttons[button_number - 1]

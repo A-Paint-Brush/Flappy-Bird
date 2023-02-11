@@ -2,12 +2,20 @@
 This file is only for testing centered rotation in pygame. It can be safely deleted because it is not imported by the
 rest of the project files.
 """
-from os.path import normpath
+import os.path
 import pygame
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 YELLOW = (222, 216, 149)
 TRANSPARENT = (1, 1, 1)
+
+
+def get_root_dir() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(os.path.normpath(__file__)), ".."))
+
+
+def resolve_path(rel_path: str) -> str:
+    return os.path.join(get_root_dir(), os.path.normpath(rel_path))
 
 
 class Test:
@@ -36,7 +44,7 @@ class Test:
 class Bird:
     def __init__(self, resolution):
         self.resolution = resolution
-        self.image = pygame.image.load(normpath("./Images/flap middle.png")).convert_alpha()
+        self.image = pygame.image.load(resolve_path("./Images/Sprites/flap middle.png")).convert_alpha()
         self.surface = self.image
         self.width, self.height = self.image.get_size()
         self.x = round(self.resolution[0] / 2)

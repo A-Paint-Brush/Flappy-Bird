@@ -95,11 +95,14 @@ class ToastNotifier(pygame.sprite.Sprite):
                 self.direction = "idle"
                 self.notification_timer.reset_timer()
         elif self.direction == "right":
-            movement = self.physics.calc()
-            self.x += movement
-            if self.x > self.resolution[0]:
+            time = self.delta_time.get_time()
+            self.delta_time.reset_timer()
+            self.calc_damp(time)
+            if round(self.remaining_distance) > 0:
+                self.x = self.resolution[0] - self.remaining_distance
+            else:
                 self.kill()
-                return True  # Delete this toast notification
+                return True
         elif self.direction == "idle":
             if self.y + self.height + self.border_padding > self.resolution[1]:
                 # Do not start dismiss countdown if the toast is partially/completely out of view due to too many toasts
@@ -146,8 +149,9 @@ class ToastNotifier(pygame.sprite.Sprite):
     def dismiss(self) -> None:
         self.close_btn_img = self.close_btn_costumes[2]  # No close button.
         self.direction = "right"
-        self.physics = Physics.EulerAcceleration(self.acceleration)
         self.render_surface(self.current_color)  # Re-render the toast without the close button.
+        self.remaining_distance = self.resolution[0] - self.dest_x
+        self.delta_time.reset_timer()
 
     def get_size(self) -> Tuple[int, int]:
         return self.width, self.height

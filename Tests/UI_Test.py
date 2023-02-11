@@ -1,7 +1,6 @@
 from typing import *
-import os.path as path
-import Widgets
-import Mouse
+import os.path
+import sys
 import pygame
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -10,10 +9,18 @@ GREY = (240, 240, 240)
 ORANGE = (255, 160, 20)
 
 
+def get_root_dir() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(os.path.normpath(__file__)), ".."))
+
+
+def resolve_path(rel_path: str) -> str:
+    return os.path.join(get_root_dir(), os.path.normpath(rel_path))
+
+
 class Window:
     def __init__(self):
         pygame.init()
-        self.resolution = (513, 530)
+        self.resolution = (513, 590)
         self.fps = 60
         self.game_run = True
         self.listen_events = [pygame.QUIT,
@@ -33,8 +40,8 @@ class Window:
         self.widgets.add_widget_canvas(self.widget_canvas)
         self.mouse = Mouse.Cursor()
         self.key_event = None
-        self.font = pygame.font.Font(path.normpath("./Fonts/Arial/normal.ttf"), 28)
-        self.font_small = pygame.font.Font(path.normpath("./Fonts/Arial/normal.ttf"), 16)
+        self.font = pygame.font.Font(resolve_path("./Fonts/Arial/normal.ttf"), 28)
+        self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 16)
         self.counter1 = 0
         self.counter2 = 0
         text = self.font.render("Give her up", True, BLACK)
@@ -112,17 +119,17 @@ class Window:
                                           "radio3")
         for w in self.radio_group.get_children():
             self.widget_canvas.add_widget(w)
-        self.entry = Widgets.Entry(320,
-                                   490,
+        self.entry = Widgets.Entry(100,
+                                   465,
                                    150,
                                    30,
                                    4,
-                                   self.font_small,
+                                   self.mandarin_font,
                                    BLACK,
                                    "entry1")
         self.widget_canvas.add_widget(self.entry)
-        self.widget_canvas.add_widget(Widgets.Button(90,
-                                                     460,
+        self.widget_canvas.add_widget(Widgets.Button(170,
+                                                     520,
                                                      190,
                                                      55,
                                                      1,
@@ -142,7 +149,7 @@ class Window:
                     self.mouse.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse.set_button_state(event.button, False)
-                elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP or event.type == pygame.TEXTINPUT:
+                elif event.type in (pygame.KEYDOWN, pygame.KEYUP, pygame.TEXTINPUT):
                     self.key_event = event
             self.mouse.set_pos(*pygame.mouse.get_pos())
             self.mouse.reset_z_index()
@@ -162,13 +169,15 @@ class Window:
         self.counter2 += 1
 
     def submit(self):
-        print("Sin Statistics:\n"
+        print("{}\n"
+              "Sin Statistics:\n"
               "You gave her up {} times.\n"
               "You let her down {} times.\n"
               "You {} run around and desert her.\n"
               "You {} stay with her forever and not part with her.\n"
               "You chose to {}.\n"
-              "You left her the message: '{}'".format(self.counter1,
+              "You left her the message: '{}'".format("-" * 35,
+                                                      self.counter1,
                                                       self.counter2,
                                                       "DID" if self.checkbox1.get_data() else "DIDN'T",
                                                       "DID" if self.checkbox2.get_data() else "DIDN'T",
@@ -181,4 +190,7 @@ class Window:
 
 
 if __name__ == "__main__":
+    sys.path.extend((get_root_dir(),))
+    import Widgets
+    import Mouse
     Window()

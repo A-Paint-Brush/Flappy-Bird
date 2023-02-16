@@ -58,6 +58,8 @@ class MainProc:
                               pygame.VIDEORESIZE,
                               pygame.MOUSEBUTTONDOWN,
                               pygame.MOUSEBUTTONUP,
+                              pygame.WINDOWENTER,
+                              pygame.WINDOWLEAVE,
                               pygame.KEYDOWN,
                               pygame.KEYUP,
                               pygame.TEXTINPUT]
@@ -91,6 +93,10 @@ class MainProc:
                     self.mouse_obj.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_obj.set_button_state(event.button, False)
+                elif event.type == pygame.WINDOWENTER:
+                    self.mouse_obj.mouse_enter()
+                elif event.type == pygame.WINDOWLEAVE:
+                    self.mouse_obj.mouse_leave()
                 elif event.type == pygame.KEYDOWN:
                     # region Key Sequence Detection
                     self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)
@@ -212,4 +218,8 @@ class StateManager:
 
 
 if __name__ == "__main__":
-    MainProc()
+    if pygame.version.vernum >= (2, 0, 1):
+        MainProc()
+    else:
+        print("This game requires Pygame version 2.0.1 or higher to run. Consider updating your version of Pygame "
+              "with the command: 'python -m pip install --upgrade pygame'")

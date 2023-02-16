@@ -1,9 +1,11 @@
 from Global import *
-import sys
 import math
 import Mouse
 import Time
+import os
 import pygame
+import pyperclip
+os.environ["SDL_IME_SHOW_UI"] = "1"
 
 
 class BaseWidget(pygame.sprite.Sprite):
@@ -130,16 +132,16 @@ class AnimatedSurface(BaseWidget):
             new_width = self.max_width - self.difference
         elif direction == "decrease":
             new_width = self.min_width + self.difference
-        if round(new_width) == self.min_width:
+        if round(new_width) == self.min_width and direction == "decrease":
             self.resize_state = "small"
             self.difference = self.max_width - self.min_width
-        elif round(new_width) == self.max_width:
+        elif round(new_width) == self.max_width and direction == "increase":
             self.resize_state = "large"
             self.difference = self.max_width - self.min_width
         return new_width
 
     def change_size(self, direction: Literal["increase", "decrease"]) -> None:
-        if (self.resize_state, direction) in (("small", "decrease"), ("large", "increase")):  # Guard clause
+        if (self.resize_state, direction) in (("small", "decrease"), ("large", "increase")):
             self.delta_timer.reset_timer()
             return None
         if self.resize_state == "small":
@@ -244,28 +246,35 @@ class Box(pygame.sprite.Sprite):
                  radius: int,
                  border: int):
         super().__init__()
+        self.x = x
+        self.y = y
         self.length = length
         self.radius = radius
         self.border = border
         self.lock = True
         self.mouse_down = False
         self.checked = False
-        self.x = x
-        self.y = y
         self.image = pygame.Surface((length, length))
         self.image.set_colorkey(TRANSPARENT)
-        self.image.fill(TRANSPARENT)
         self.normal_color = GREY
         self.active_color = CYAN
         self.current_color = self.normal_color
-        draw_rounded_rect(self.image, (0, 0), (length, length), radius, BLACK)
-        draw_rounded_rect(self.image,
-                          (border, border),
-                          (length - border * 2, length - border * 2),
-                          radius - border,
-                          self.normal_color)
+        self.render_surface()
         self.rect = pygame.Rect(self.x, self.y, length, length)
         self.mask = pygame.mask.from_surface(self.image)
+
+    def render_surface(self) -> None:
+        self.image.fill(TRANSPARENT)
+        draw_rounded_rect(self.image, (0, 0), (self.length, self.length), self.radius, BLACK)
+        draw_rounded_rect(self.image,
+                          (self.border, self.border),
+                          (self.length - self.border * 2, self.length - self.border * 2),
+                          self.radius - self.border,
+                          self.current_color)
+        if self.checked:
+            pygame.draw.lines(self.image, BLACK, False, ((5, self.length / 2 + 3),
+                                                         (self.length / 2 - 5, self.length - 5),
+                                                         (self.length - 5, 5)), 3)
 
     def update(self, mouse_obj: Mouse.Cursor) -> None:
         collide = pygame.sprite.collide_mask(self, mouse_obj)
@@ -283,15 +292,7 @@ class Box(pygame.sprite.Sprite):
             if not mouse_obj.get_button_state(1):
                 self.lock = False
             self.current_color = self.active_color
-        draw_rounded_rect(self.image,
-                          (self.border, self.border),
-                          (self.length - self.border * 2, self.length - self.border * 2),
-                          self.radius - self.border,
-                          self.current_color)
-        if self.checked:
-            pygame.draw.lines(self.image, BLACK, False, ((5, self.length / 2 + 3),
-                                                         (self.length / 2 - 5, self.length - 5),
-                                                         (self.length - 5, 5)), 3)
+        self.render_surface()  # Mask and rect updates are not needed, since the shape of the surface stays the same.
 
     def get_data(self) -> bool:
         return self.checked
@@ -491,7 +492,7 @@ class Entry(BaseWidget):
                         area=self.text_canvas.get_view_rect())
 
     def update_real_pos(self, real_pos: Tuple[Union[int, float], Union[int, float]]) -> None:
-        self.text_canvas.update_text_rect(real_pos)
+        self.text_canvas.update_text_rect((real_pos[0] + self.padding, real_pos[1] + self.padding))
 
     def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
         collide = pygame.sprite.collide_rect(self, mouse_obj)
@@ -621,7 +622,7 @@ class Entry(BaseWidget):
             if self.text_canvas.mouse_collision(rel_mouse):
                 if self.dnd_start_x != -1 and self.text_canvas.text_block_selected():
                     if self.text_canvas.selection_rect_collide(rel_mouse.get_pos()):
-                        if abs(rel_mouse.get_pos()[0] - self.dnd_start_x) == self.dnd_distance:
+                        if abs(rel_mouse.get_pos()[0] - self.dnd_start_x) <= self.dnd_distance:
                             # Unselect text
                             self.text_canvas.cancel_dnd_event()
                             self.text_canvas.start_selection()
@@ -630,7 +631,8 @@ class Entry(BaseWidget):
                 self.text_canvas.end_dnd_event()
             if self.selecting:
                 self.selecting = False
-                self.text_canvas.update_caret_pos(rel_mouse.get_pos())
+                if mouse_obj.get_pos() != (-1, -1):
+                    self.text_canvas.update_caret_pos(rel_mouse.get_pos())
                 self.text_canvas.end_selection()
             self.drag_pos_recorded = False
             self.drag_pos = None
@@ -640,27 +642,13 @@ class Entry(BaseWidget):
         self.render_text_canvas()
 
     def paste_text(self) -> None:
-        if sys.platform in ("win32", "linux"):
-            data_type = "text/plain;charset=utf-8"
-            decode_format = "utf-8"
-            print("Text pasted into text-box in UTF-8 encoding.")
-        else:
-            data_type = pygame.SCRAP_TEXT
-            decode_format = "ascii"
         try:
-            text = pygame.scrap.get(data_type)
-        except pygame.error:
+            text = pyperclip.paste()
+        except pyperclip.PyperclipException:
             return None
-        if text is None:
-            print("Clipboard is empty, aborting paste.")
-            return None
-        print("Available types:", pygame.scrap.get_types())
-        print("Hex bytes:",
-              "".join(char + ("" if index % 2 or index == len(text.hex()) else " ") for index,
-                      char in enumerate(text.hex(), start=1)))
-        print("Glyph Representation: \"{}\"".format(text.decode("utf-8", "ignore")))
-        text = "".join(c for c in text.decode(decode_format, "ignore") if c.isprintable())
-        self.text_canvas.add_text(text)  # The paste will be ignored if the entry does not have keyboard focus.
+        if text:
+            # The paste will be ignored if the Entry does not have keyboard focus.
+            self.text_canvas.add_text("".join(c for c in text if c.isprintable()))
 
     def get_pos(self) -> Tuple[int, int]:
         return self.x, self.y
@@ -692,7 +680,6 @@ class EntryText:
         self.focus = False
         self.surface = pygame.Surface((self.caret_width, self.view_height))
         self.surface.fill(WHITE)
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
         self.text = ""
         self.undo_history = [""]
         self.redo_history = []
@@ -716,11 +703,10 @@ class EntryText:
             if self.caret_index > len(self.text):
                 self.caret_index = len(self.text)
             current_width = self.calc_location_width()
-            if self.x + current_width < self.scroll_padding:
-                self.move_view_by_caret("r")
-            elif self.x + current_width >= self.view_width - self.scroll_padding:
+            if current_width < self.view_width:
+                self.x = 0
+            elif self.x + current_width < self.view_width:
                 self.move_view_by_caret("l")
-            self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
 
     def redo(self) -> None:
         if len(self.redo_history) and self.focus:
@@ -732,11 +718,10 @@ class EntryText:
             if self.caret_index > len(self.text):
                 self.caret_index = len(self.text)
             current_width = self.calc_location_width()
-            if self.x + current_width < self.scroll_padding:
-                self.move_view_by_caret("r")
-            elif self.x + current_width >= self.view_width - self.scroll_padding:
+            if current_width < self.view_width:
+                self.x = 0
+            elif self.x + current_width < self.view_width:
                 self.move_view_by_caret("l")
-            self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
 
     def text_block_selected(self) -> bool:
         # Returns True if a block of text has already been selected, and the selection event has ENDED.
@@ -764,13 +749,22 @@ class EntryText:
     def end_dnd_event(self) -> None:
         if self.dnd_event and (self.select_start != -1 and self.select_end != -1) and (not self.selecting):
             self.dnd_event = False
+            if self.select_start <= self.caret_index <= self.select_end:
+                self.select_start = -1
+                self.select_end = -1
+                self.select_rect = None
+                return None
             selection = self.text[self.select_start:self.select_end]
-            front = self.text[:self.select_start]
-            back = self.text[self.select_end:]
-            self.text = front + back
-            front = self.text[:self.caret_index]
-            back = self.text[self.caret_index:]
-            self.text = front + selection + back
+            before_sel = self.text[:self.select_start]
+            after_sel = self.text[self.select_end:]
+            self.text = before_sel + after_sel
+            if self.caret_index > self.select_end:
+                temp_caret_idx = self.caret_index - len(selection)
+            else:
+                temp_caret_idx = self.caret_index
+            before_sel = self.text[:temp_caret_idx]
+            after_sel = self.text[temp_caret_idx:]
+            self.text = before_sel + selection + after_sel
             self.select_start = -1
             self.select_end = -1
             self.select_rect = None
@@ -811,17 +805,12 @@ class EntryText:
         else:
             temp = list(self.text)
             self.text = "".join(temp[:self.caret_index] + list(text) + temp[self.caret_index:])
-        new_size = self.calc_text_size(self.text)
-        self.surface = pygame.Surface((new_size[0] + self.caret_width, new_size[1]))
         self.reset_caret()
         if not overwrite:
             self.caret_index += len(text)
         current_width = self.calc_location_width()
-        if self.x + current_width < self.scroll_padding:
-            self.move_view_by_caret("r")
-        elif self.x + current_width >= self.view_width - self.scroll_padding:
+        if self.x + current_width > self.view_width:
             self.move_view_by_caret("l")
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
         self.record_undo()
         self.cancel_dnd_event()
 
@@ -856,14 +845,10 @@ class EntryText:
             self.text = front + back
             if len(self.text) != original_len:
                 self.caret_index -= 1
-        current_width = self.calc_location_width()
-        if current_width < self.view_width - self.scroll_padding * 2:
+        if self.calc_text_size(self.text)[0] + self.caret_width < self.view_width:
             self.x = 0
-        elif self.x + current_width < self.scroll_padding:
-            self.move_view_by_caret("r")
-        elif self.x + current_width < self.view_width - self.scroll_padding:
-            self.move_view_by_caret("l")
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
+        elif self.x + self.calc_text_size(self.text)[0] + self.caret_width < self.view_width:
+            self.x = -(self.calc_text_size(self.text)[0] + self.caret_width + self.scroll_padding - self.view_width)
         self.record_undo()
         self.cancel_dnd_event()
         self.reset_caret()
@@ -892,14 +877,10 @@ class EntryText:
             back = self.text[self.caret_index:]
             back = back[1:]
             self.text = front + back
-        current_width = self.calc_location_width()
-        if current_width < self.view_width - self.scroll_padding * 2:
+        if self.calc_text_size(self.text)[0] + self.caret_width < self.view_width:
             self.x = 0
-        elif self.x + current_width < self.scroll_padding:
-            self.move_view_by_caret("r")
-        elif self.x + current_width < self.view_width - self.scroll_padding:
-            self.move_view_by_caret("l")
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
+        elif self.x + self.calc_text_size(self.text)[0] + self.caret_width < self.view_width:
+            self.x = -(self.calc_text_size(self.text)[0] + self.caret_width + self.scroll_padding - self.view_width)
         self.record_undo()
         self.cancel_dnd_event()
         self.reset_caret()
@@ -913,20 +894,13 @@ class EntryText:
                     selection = self.text[self.caret_index:self.select_start]
             else:
                 selection = self.text[self.select_start:self.select_end]
-            if sys.platform in ("win32", "linux"):
-                data_type = "text/plain;charset=utf-8"
-                text_bytes = selection.encode("utf-8", "ignore")
-                print("Text copied to clipboard in UTF-8 encoding.")
-            else:
-                data_type = pygame.SCRAP_TEXT
-                text_bytes = selection.encode("ascii", "ignore")
             try:
-                pygame.scrap.put(data_type, text_bytes)
-            except pygame.error:
+                pyperclip.copy(selection)
+            except pyperclip.PyperclipException:
                 return None
 
     def calc_location_width(self) -> float:
-        return self.calc_text_size(self.text[:self.caret_index])[0]
+        return self.calc_text_size(self.text[:self.caret_index])[0] + self.caret_width
 
     def reset_caret(self) -> None:
         self.display_caret = True
@@ -1029,9 +1003,8 @@ class EntryText:
         current_width = self.calc_location_width()
         if self.x + current_width < self.scroll_padding:
             self.move_view_by_caret("r")
-        elif self.x + current_width >= self.view_width - self.scroll_padding:
+        elif self.x + current_width > self.view_width - self.scroll_padding:
             self.move_view_by_caret("l")
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
 
     def caret_home(self, shift_down: bool) -> None:
         if self.focus:
@@ -1051,7 +1024,6 @@ class EntryText:
                 self.select_rect = pygame.Rect(end_pos, 0, start_pos - end_pos + self.caret_width, self.view_height)
             self.caret_index = 0
             self.x = 0
-            self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
             self.cancel_dnd_event()
 
     def caret_end(self, shift_down: bool) -> None:
@@ -1071,7 +1043,7 @@ class EntryText:
                 self.select_start = self.caret_index
                 self.select_rect = pygame.Rect(start_pos, 0, end_pos - start_pos + self.caret_width, self.view_height)
             self.caret_index = len(self.text)
-            if self.calc_text_size(self.text)[0] >= self.view_width - self.scroll_padding:
+            if self.calc_text_size(self.text)[0] + self.caret_width > self.view_width:
                 self.move_view_by_caret("l")
             self.cancel_dnd_event()
 
@@ -1080,8 +1052,6 @@ class EntryText:
         self.scroll_timer.reset_timer()
         if not self.focus:
             self.surface.fill(WHITE)
-            if self.select_rect is not None:
-                pygame.draw.rect(self.surface, BLUE, self.select_rect, 0)
             self.surface.blit(self.render_text(), (0, 0))
             return None
         delta_time = self.caret_timer.get_time()
@@ -1093,6 +1063,8 @@ class EntryText:
                     self.display_caret = not self.display_caret
                 compensation %= self.caret_delay
             self.caret_timer.force_elapsed_time(compensation)
+        new_size = self.calc_text_size(self.text)
+        self.surface = pygame.Surface((new_size[0] + self.caret_width, new_size[1]))
         self.surface.fill(WHITE)
         if self.select_rect is not None:
             pygame.draw.rect(self.surface, BLUE, self.select_rect, 0)
@@ -1110,13 +1082,14 @@ class EntryText:
             return text
 
     def calc_text_size(self, text) -> Tuple[float, int]:
-        text_size = self.font.render(text, True, self.text_color, WHITE).get_size()
+        text_size = self.font.size(text)
         wh_ratio = text_size[0] / text_size[1]
         new_size = (self.view_height * wh_ratio, self.view_height)
         return new_size
 
     def update_text_rect(self, real_pos: Tuple[Union[int, float], Union[int, float]]) -> None:
-        pygame.key.set_text_input_rect(pygame.Rect(*real_pos, self.view_width, self.view_height))
+        # pygame.key.set_text_input_rect(pygame.Rect(*real_pos, self.view_width, self.view_height))
+        pass
 
     def focus_get(self) -> None:
         self.focus = True
@@ -1128,7 +1101,6 @@ class EntryText:
         self.focus = False
         self.display_caret = False
         self.x = 0
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
         pygame.key.stop_text_input()
         if (self.select_start != -1 and self.select_end != -1) or self.selecting:
             self.selecting = False
@@ -1141,29 +1113,27 @@ class EntryText:
 
     def move_view_by_caret(self, direction: Literal["l", "r"]) -> None:
         if direction == "l":
-            width = self.calc_text_size(self.text[:self.caret_index])[0]
+            width = self.calc_text_size(self.text[:self.caret_index])[0] + self.caret_width
             self.x = -(width - self.view_width + self.scroll_padding)
         elif direction == "r":
             width = self.calc_text_size(self.text[:self.caret_index])[0]
             if self.caret_index == 0:
                 self.x = 0
             else:
-                self.x = -width + self.scroll_padding
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
+                self.x = -(width - self.caret_width - self.scroll_padding)
 
     def move_view_by_pos(self, direction: Literal["l", "r"]) -> None:
         if direction == "l":
-            if self.calc_text_size(self.text)[0] <= self.view_width - self.scroll_padding:
+            if self.calc_text_size(self.text)[0] + self.caret_width <= self.view_width:
                 self.x = 0
                 return None
             self.x -= self.scroll_amount * self.scroll_time
-            if self.x < -(self.calc_text_size(self.text)[0] - self.view_width + self.scroll_padding):
-                self.x = -(self.calc_text_size(self.text)[0] - self.view_width + self.scroll_padding)
+            if self.x < -(self.calc_text_size(self.text)[0] + self.caret_width + self.scroll_padding - self.view_width):
+                self.x = -(self.calc_text_size(self.text)[0] + self.caret_width + self.scroll_padding - self.view_width)
         elif direction == "r":
             self.x += self.scroll_amount * self.scroll_time
             if self.x > 0:
                 self.x = 0
-        self.rect = pygame.Rect(self.x, self.y, *self.surface.get_size())
 
     def get_surface(self) -> pygame.Surface:
         return self.surface
@@ -1195,13 +1165,17 @@ class WidgetCanvas(BaseWidget):
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.child_widgets = {}
 
-    def add_widget(self, widget_obj: BaseWidget) -> None:
-        if widget_obj.get_widget_name() in self.child_widgets:
-            raise WidgetAppendError(widget_obj)
+    def add_widget(self, widget_obj: Union[BaseWidget, RadioGroup]) -> None:
+        if isinstance(widget_obj, RadioGroup):
+            for w in widget_obj.get_children():
+                self.add_widget(w)
         else:
-            self.child_widgets[widget_obj.get_widget_name()] = widget_obj
-            if isinstance(widget_obj, Entry):
-                self.scroll_event()
+            if widget_obj.get_widget_name() in self.child_widgets:
+                raise WidgetAppendError(widget_obj)
+            else:
+                self.child_widgets[widget_obj.get_widget_name()] = widget_obj
+                if isinstance(widget_obj, Entry):
+                    self.scroll_event()
 
     def update(self, mouse_obj: Mouse.Cursor, keyboard_event: Optional[pygame.event.Event]) -> None:
         if self.z_index == mouse_obj.get_z_index():

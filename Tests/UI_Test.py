@@ -26,12 +26,13 @@ class Window:
         self.listen_events = [pygame.QUIT,
                               pygame.MOUSEBUTTONDOWN,
                               pygame.MOUSEBUTTONUP,
+                              pygame.WINDOWENTER,
+                              pygame.WINDOWLEAVE,
                               pygame.KEYDOWN,
                               pygame.KEYUP,
                               pygame.TEXTINPUT]
         pygame.display.set_caption("GUI Toolkit")
         self.display = pygame.display.set_mode(self.resolution, pygame.HWSURFACE | pygame.DOUBLEBUF)
-        pygame.scrap.init()
         pygame.event.set_blocked(None)
         pygame.event.set_allowed(self.listen_events)
         self.clock = pygame.time.Clock()
@@ -117,8 +118,7 @@ class Window:
                                           20,
                                           1,
                                           "radio3")
-        for w in self.radio_group.get_children():
-            self.widget_canvas.add_widget(w)
+        self.widget_canvas.add_widget(self.radio_group)
         self.entry = Widgets.Entry(100,
                                    465,
                                    150,
@@ -149,6 +149,10 @@ class Window:
                     self.mouse.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse.set_button_state(event.button, False)
+                elif event.type == pygame.WINDOWENTER:
+                    self.mouse.mouse_enter()
+                elif event.type == pygame.WINDOWLEAVE:
+                    self.mouse.mouse_leave()
                 elif event.type in (pygame.KEYDOWN, pygame.KEYUP, pygame.TEXTINPUT):
                     self.key_event = event
             self.mouse.set_pos(*pygame.mouse.get_pos())
@@ -193,4 +197,8 @@ if __name__ == "__main__":
     sys.path.extend((get_root_dir(),))
     import Widgets
     import Mouse
-    Window()
+    if pygame.version.vernum >= (2, 0, 1):
+        Window()
+    else:
+        print("This game requires Pygame version 2.0.1 or higher to run. Consider updating your version of Pygame "
+              "with the command: 'python -m pip install --upgrade pygame'")

@@ -54,17 +54,20 @@ class MainProc:
         # region Window Creation
         pygame.display.set_caption("Flappy Bird")
         self.display = pygame.display.set_mode(self.fixed_resolution, pygame.RESIZABLE)
-        self.listen_events = [pygame.QUIT,
+        self.listen_events = (pygame.QUIT,
+                              pygame.WINDOWFOCUSLOST,
+                              pygame.WINDOWENTER,
+                              pygame.WINDOWLEAVE,
                               pygame.VIDEORESIZE,
                               pygame.MOUSEBUTTONDOWN,
                               pygame.MOUSEBUTTONUP,
-                              pygame.WINDOWENTER,
-                              pygame.WINDOWLEAVE,
                               pygame.KEYDOWN,
                               pygame.KEYUP,
-                              pygame.TEXTINPUT]
+                              pygame.TEXTINPUT,
+                              pygame.TEXTEDITING)
         pygame.event.set_blocked(None)
         pygame.event.set_allowed(self.listen_events)
+        pygame.key.stop_text_input()
         # endregion
         # region Game Objects
         self.background = pygame.image.load(normpath("Images/Sprites/background.png")).convert_alpha()
@@ -86,6 +89,10 @@ class MainProc:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_run = False
+                elif event.type == pygame.WINDOWENTER:
+                    self.mouse_obj.mouse_enter()
+                elif event.type == pygame.WINDOWLEAVE:
+                    self.mouse_obj.mouse_leave()
                 elif event.type == pygame.VIDEORESIZE:
                     if not self.full_screen:
                         self.resize_window(event)
@@ -93,10 +100,6 @@ class MainProc:
                     self.mouse_obj.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_obj.set_button_state(event.button, False)
-                elif event.type == pygame.WINDOWENTER:
-                    self.mouse_obj.mouse_enter()
-                elif event.type == pygame.WINDOWLEAVE:
-                    self.mouse_obj.mouse_leave()
                 elif event.type == pygame.KEYDOWN:
                     # region Key Sequence Detection
                     self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)

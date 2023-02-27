@@ -5,7 +5,7 @@ import Time
 import os
 import pygame
 import pyperclip
-os.environ["SDL_IME_SHOW_UI"] = "1"
+os.environ["SDL_IME_SHOW_UI"] = "1"  # Enable showing the IME candidate list.
 
 
 class BaseWidget(pygame.sprite.Sprite):
@@ -13,7 +13,7 @@ class BaseWidget(pygame.sprite.Sprite):
         super().__init__()
         self.widget_name = widget_name
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         pass
 
     def get_widget_name(self) -> str:
@@ -62,7 +62,7 @@ class AnimatedSurface(BaseWidget):
         self.rect = pygame.Rect(self.x, self.y, self.original_width, self.original_height)
         self.mask = pygame.mask.from_surface(self.image)
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         # region Tick Size
         collide = pygame.sprite.collide_mask(self, mouse_obj)
         if collide is None:
@@ -224,7 +224,7 @@ class Checkbox(BaseWidget):
         self.rect = pygame.Rect(self.x, self.y, *self.image.get_size())
         self.__button = Box(padding, padding, self.button_length, self.button_radius, border)
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         abs_pos = mouse_obj.get_pos()
         rel_mouse = mouse_obj.copy()
         rel_mouse.set_pos(abs_pos[0] - self.x, abs_pos[1] - self.y)
@@ -348,7 +348,7 @@ class RadioButton(Checkbox):
         self.button_radius = 15
         self.__button = Circle(padding, padding, self.button_radius, border, radio_id, callback, selected)
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         abs_pos = mouse_obj.get_pos()
         rel_mouse = mouse_obj.copy()
         rel_mouse.set_pos(abs_pos[0] - self.x, abs_pos[1] - self.y)
@@ -430,9 +430,11 @@ class Entry(BaseWidget):
         super().__init__(widget_name)
         self.x = x
         self.y = y
-        self.width = width
+        self.original_width = width
         self.height = height
         self.padding = padding
+        self.font = font
+        self.fg = fg
         self.border_thickness = 2
         self.shift = False
         self.selecting = False
@@ -448,9 +450,13 @@ class Entry(BaseWidget):
         self.dnd_start_x = -1
         self.dnd_distance = 0
         self.dnd_x_recorded = False
+        self.real_x = 0
+        self.real_y = 0
         self.lock = True
         self.mouse_down = False
-        self.text_canvas = EntryText(width - padding * 2, height - padding * 2, font, fg)
+        self.text_canvas = EntryText(width - padding * 2, height - padding * 2, self.font, fg)
+        self.ime_canvas = None
+        self.caret_restore_pos = -1
         # (start sticky keys, start timer, has reset repeat, repeat timer)
         self.sticky_keys = {pygame.K_LEFT: [False,
                                             Time.Time(),
@@ -472,19 +478,20 @@ class Entry(BaseWidget):
                                               False,
                                               Time.Time(),
                                               self.text_canvas.delete]}
-        self.start_delay = 1
+        self.start_delay = 0.5
         self.repeat_delay = 0.1
         self.scroll_hit_box = 30
-        self.image = pygame.Surface((width, height))
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.image = pygame.Surface((self.original_width, self.height))
+        self.rect = pygame.Rect(self.x, self.y, self.original_width, self.height)
 
     def render_text_canvas(self) -> None:
-        self.image.fill(self.current_border)
+        self.image.fill((0, 0, 0, 0))
+        pygame.draw.rect(self.image, self.current_border, [0, 0, self.original_width, self.height], 0)
         pygame.draw.rect(self.image,
                          WHITE,
                          [self.border_thickness,
                           self.border_thickness,
-                          self.width - self.border_thickness * 2,
+                          self.original_width - self.border_thickness * 2,
                           self.height - self.border_thickness * 2],
                          0)
         self.image.blit(source=self.text_canvas.get_surface(),
@@ -492,15 +499,16 @@ class Entry(BaseWidget):
                         area=self.text_canvas.get_view_rect())
 
     def update_real_pos(self, real_pos: Tuple[Union[int, float], Union[int, float]]) -> None:
-        self.text_canvas.update_text_rect((real_pos[0] + self.padding, real_pos[1] + self.padding))
+        self.real_x, self.real_y = real_pos
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: pygame.event.Event) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         collide = pygame.sprite.collide_rect(self, mouse_obj)
         if collide:
             if mouse_obj.get_button_state(1):
-                if not self.lock:
+                if (not self.lock) and (self.ime_canvas is None):
                     self.mouse_down = True
                     self.text_canvas.focus_get()
+                    pygame.key.start_text_input()
             else:
                 self.mouse_down = False
                 self.lock = False
@@ -512,7 +520,7 @@ class Entry(BaseWidget):
             if mouse_obj.get_button_state(1):
                 self.mouse_down = True
                 if self.lock:
-                    self.text_canvas.focus_lose()
+                    self.stop_focus()
             else:
                 self.mouse_down = False
                 self.lock = True
@@ -523,61 +531,101 @@ class Entry(BaseWidget):
         abs_pos = mouse_obj.get_pos()
         rel_mouse = mouse_obj.copy()
         rel_mouse.set_pos(abs_pos[0] - (self.x + self.padding), abs_pos[1] - (self.y + self.padding))
-        if keyboard_event is not None:
-            if keyboard_event.type == pygame.KEYDOWN or keyboard_event.type == pygame.KEYUP:
-                if keyboard_event.mod & pygame.KMOD_SHIFT:
-                    self.shift = True
-                else:
-                    if self.shift:
-                        self.shift = False
-                        if not self.start_select:
-                            self.text_canvas.end_selection()
-                            self.start_select = True
-                        elif self.text_canvas.selection_event_ongoing():
-                            # Special case for handling a text selection event that was initiated by a HOME or END
-                            # key-press.
-                            self.text_canvas.end_selection()
-            if keyboard_event.type == pygame.KEYDOWN:
-                if keyboard_event.key == pygame.K_TAB:
-                    self.text_canvas.add_text("\t".expandtabs(tabsize=4))
-                elif keyboard_event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
-                    if not self.sticky_keys[keyboard_event.key][0]:
-                        if keyboard_event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                            if self.shift and self.start_select and (not self.text_canvas.selection_event_ongoing()):
-                                # The last one in the boolean expression is to make sure a selection event won't be
-                                # triggered again if it has already been initiated by a HOME or END key-press.
-                                self.text_canvas.start_selection()
-                                self.start_select = False
-                        self.sticky_keys[keyboard_event.key][4]()
-                        self.sticky_keys[keyboard_event.key][0] = True
-                        self.sticky_keys[keyboard_event.key][1].reset_timer()
-                elif keyboard_event.key == pygame.K_HOME:
-                    self.text_canvas.caret_home(self.shift)
-                elif keyboard_event.key == pygame.K_END:
-                    self.text_canvas.caret_end(self.shift)
-                elif keyboard_event.mod & pygame.KMOD_CTRL:
-                    if keyboard_event.key == pygame.K_c:
-                        self.text_canvas.copy_text()
-                    elif keyboard_event.key == pygame.K_v:
-                        self.paste_text()
-                    elif keyboard_event.key == pygame.K_a:
-                        self.text_canvas.select_all()
-                    elif keyboard_event.key == pygame.K_x:
-                        self.text_canvas.copy_text()
-                        self.text_canvas.backspace()
-                    elif keyboard_event.key == pygame.K_z:
+        if keyboard_events is not None:
+            for event in keyboard_events:
+                if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                    if event.mod & pygame.KMOD_SHIFT:
+                        self.shift = True
+                    else:
                         if self.shift:
+                            self.shift = False
+                            if not self.start_select:
+                                self.text_canvas.end_selection()
+                                self.start_select = True
+                            elif self.text_canvas.selection_event_ongoing():
+                                # Special case for handling a text selection event that was initiated by a HOME or END
+                                # key-press.
+                                self.text_canvas.end_selection()
+                if event.type == pygame.WINDOWFOCUSLOST:
+                    self.stop_focus()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_TAB:
+                        self.text_canvas.add_text("\t".expandtabs(tabsize=4))
+                    elif event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
+                        if not self.sticky_keys[event.key][0]:
+                            if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
+                                if self.shift and self.start_select and \
+                                        (not self.text_canvas.selection_event_ongoing()):
+                                    # The last one in the boolean expression is to make sure a selection event won't be
+                                    # triggered again if it has already been initiated by a HOME or END key-press.
+                                    self.text_canvas.start_selection()
+                                    self.start_select = False
+                            self.sticky_keys[event.key][4]()
+                            self.sticky_keys[event.key][0] = True
+                            self.sticky_keys[event.key][1].reset_timer()
+                    elif event.key == pygame.K_HOME:
+                        self.text_canvas.caret_home(self.shift)
+                    elif event.key == pygame.K_END:
+                        self.text_canvas.caret_end(self.shift)
+                    elif event.key == pygame.K_RETURN:
+                        if self.ime_canvas is not None:
+                            self.stop_ime_input()
+                    elif event.mod & pygame.KMOD_CTRL:
+                        if event.key == pygame.K_c:
+                            self.text_canvas.copy_text()
+                        elif event.key == pygame.K_v:
+                            self.paste_text()
+                        elif event.key == pygame.K_a:
+                            self.text_canvas.select_all()
+                        elif event.key == pygame.K_x:
+                            if self.text_canvas.copy_text():
+                                self.text_canvas.backspace()
+                        elif event.key == pygame.K_z:
+                            if self.shift:
+                                self.text_canvas.redo()
+                            else:
+                                self.text_canvas.undo()
+                        elif event.key == pygame.K_y:
                             self.text_canvas.redo()
+                elif event.type == pygame.KEYUP:
+                    if event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
+                        self.sticky_keys[event.key][0] = False
+                        self.sticky_keys[event.key][2] = False
+                elif event.type == pygame.TEXTINPUT:
+                    self.text_canvas.add_text(event.text)
+                elif event.type == pygame.TEXTEDITING:
+                    if self.ime_canvas is None and event.text:
+                        self.caret_restore_pos = self.text_canvas.get_caret_index()
+                        self.text_canvas.focus_lose(False)
+                        self.ime_canvas = EntryText(self.original_width - self.padding * 2,
+                                                    self.height - self.padding * 2,
+                                                    self.font,
+                                                    self.fg)
+                        self.ime_canvas.focus_get()
+                    if self.ime_canvas is not None:
+                        self.ime_canvas.ime_update_text(event.text, event.start)
+                        width_diff = (self.padding
+                                      + self.text_canvas.get_x()
+                                      + self.text_canvas.calc_location_width()
+                                      - self.text_canvas.get_caret_width()
+                                      + self.ime_canvas.calc_text_size(self.ime_canvas.get_text())[0]
+                                      + self.ime_canvas.get_caret_width()) - self.original_width
+                        if width_diff > 0:
+                            # (self.original_width + width_diff, self.height)
+                            self.image = pygame.Surface((self.original_width + width_diff, self.height),
+                                                        flags=pygame.SRCALPHA)
                         else:
-                            self.text_canvas.undo()
-                    elif keyboard_event.key == pygame.K_y:
-                        self.text_canvas.redo()
-            elif keyboard_event.type == pygame.KEYUP:
-                if keyboard_event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
-                    self.sticky_keys[keyboard_event.key][0] = False
-                    self.sticky_keys[keyboard_event.key][2] = False
-            elif keyboard_event.type == pygame.TEXTINPUT:
-                self.text_canvas.add_text(keyboard_event.text)
+                            self.image = pygame.Surface((self.original_width, self.height))
+                        text_rect = pygame.Rect(self.real_x + self.padding + self.text_canvas.get_x()
+                                                + self.text_canvas.calc_location_width()
+                                                - self.text_canvas.get_caret_width() + self.ime_canvas.calc_ime_x_pos(),
+                                                self.real_y + self.height - self.padding,
+                                                0,
+                                                0)
+                        # It is unclear what effect the size of the rect has on the IME candidate list.
+                        pygame.key.set_text_input_rect(text_rect)
+                        if not self.ime_canvas.get_text():
+                            self.stop_ime_input()
         for key in self.sticky_keys.values():
             if key[0]:
                 if key[1].get_time() > self.start_delay and (not key[2]):
@@ -597,7 +645,7 @@ class Entry(BaseWidget):
             if self.drag_pos_recorded and self.text_canvas.mouse_collision(self.drag_pos):
                 if mouse_obj.get_pos()[0] < self.x + self.scroll_hit_box:
                     self.text_canvas.move_view_by_pos("r")
-                elif mouse_obj.get_pos()[0] > self.x + (self.width - self.scroll_hit_box):
+                elif mouse_obj.get_pos()[0] > self.x + (self.original_width - self.scroll_hit_box):
                     self.text_canvas.move_view_by_pos("l")
             if self.text_canvas.mouse_collision(rel_mouse):
                 if not self.drag_pos_recorded:
@@ -638,8 +686,30 @@ class Entry(BaseWidget):
             self.drag_pos = None
             self.dnd_x_recorded = False
             self.dnd_start_x = -1
-        self.text_canvas.update()
+        self.text_canvas.update(False)
         self.render_text_canvas()
+        if self.ime_canvas is not None:
+            self.ime_canvas.update(True)
+            self.image.blit(self.ime_canvas.get_surface(),
+                            (self.padding
+                             + self.text_canvas.get_x()
+                             + self.text_canvas.calc_location_width()
+                             - self.text_canvas.get_caret_width(),
+                             self.padding))
+
+    def stop_focus(self) -> None:
+        if self.ime_canvas is not None:
+            # The IME text will be deleted.
+            self.stop_ime_input()
+        self.text_canvas.focus_lose()
+        pygame.key.stop_text_input()
+
+    def stop_ime_input(self):
+        self.image = pygame.Surface((self.original_width, self.height))
+        self.ime_canvas = None
+        self.text_canvas.focus_get()
+        self.text_canvas.set_caret_index(self.caret_restore_pos)
+        self.caret_restore_pos = -1
 
     def paste_text(self) -> None:
         try:
@@ -885,7 +955,10 @@ class EntryText:
         self.cancel_dnd_event()
         self.reset_caret()
 
-    def copy_text(self) -> None:
+    def copy_text(self) -> bool:
+        """
+        Returns True if there is text currently selected (which was just copied to the clipboard), False if otherwise.
+        """
         if (self.select_start != -1 or self.selecting) and self.focus:
             if self.selecting:
                 if self.caret_index > self.select_start:
@@ -897,7 +970,10 @@ class EntryText:
             try:
                 pyperclip.copy(selection)
             except pyperclip.PyperclipException:
-                return None
+                pass
+            return True
+        else:
+            return False
 
     def calc_location_width(self) -> float:
         return self.calc_text_size(self.text[:self.caret_index])[0] + self.caret_width
@@ -907,6 +983,8 @@ class EntryText:
         self.caret_timer.reset_timer()
 
     def update_caret_pos(self, mouse_pos) -> None:
+        if not self.focus:
+            return None
         text_index = -1
         width_counter = 0
         mouse_pos = (mouse_pos[0] + abs(self.x), mouse_pos[1])
@@ -969,6 +1047,8 @@ class EntryText:
             self.select_rect = pygame.Rect(start_pos, 0, end_pos - start_pos + self.caret_width, self.view_height)
 
     def change_caret_pos(self, direction: Literal["l", "r"]) -> None:
+        if not self.focus:
+            return None
         if direction == "l":
             self.caret_index -= 1
             if self.caret_index < 0:
@@ -1005,6 +1085,19 @@ class EntryText:
             self.move_view_by_caret("r")
         elif self.x + current_width > self.view_width - self.scroll_padding:
             self.move_view_by_caret("l")
+
+    def ime_update_text(self, new_text: str, caret_pos: int) -> None:
+        self.text = new_text
+        self.caret_index = caret_pos
+
+    def calc_ime_x_pos(self) -> float:
+        if self.caret_index >= len(self.text):
+            # Do not change the greater or equal to, because the caret pos reported by TEXTEDITING events seems to be
+            # out of range sometimes.
+            return self.calc_text_size(self.text)[0]
+        else:
+            return self.calc_text_size(self.text[:self.caret_index])[0] \
+                + self.calc_text_size(self.text[self.caret_index])[0]
 
     def caret_home(self, shift_down: bool) -> None:
         if self.focus:
@@ -1047,10 +1140,12 @@ class EntryText:
                 self.move_view_by_caret("l")
             self.cancel_dnd_event()
 
-    def update(self) -> None:
+    def update(self, underline: bool) -> None:
         self.scroll_time = self.scroll_timer.get_time()
         self.scroll_timer.reset_timer()
         if not self.focus:
+            new_size = self.calc_text_size(self.text)
+            self.surface = pygame.Surface((new_size[0] + self.caret_width, self.view_height))
             self.surface.fill(WHITE)
             self.surface.blit(self.render_text(), (0, 0))
             return None
@@ -1064,11 +1159,14 @@ class EntryText:
                 compensation %= self.caret_delay
             self.caret_timer.force_elapsed_time(compensation)
         new_size = self.calc_text_size(self.text)
-        self.surface = pygame.Surface((new_size[0] + self.caret_width, new_size[1]))
+        self.surface = pygame.Surface((new_size[0] + self.caret_width, self.view_height))
         self.surface.fill(WHITE)
         if self.select_rect is not None:
             pygame.draw.rect(self.surface, BLUE, self.select_rect, 0)
         self.surface.blit(self.render_text(), (0, 0))
+        if underline:
+            for x in range(0, self.surface.get_width() - 2, 3):
+                pygame.draw.rect(self.surface, BLACK, [x, self.view_height - 1, 2, 1], 0)
         if self.display_caret:
             x = self.calc_text_size(self.text[:self.caret_index])[0]
             self.surface.blit(self.caret_surf, (x, (self.view_height - self.caret_height) / 2))
@@ -1087,21 +1185,18 @@ class EntryText:
         new_size = (self.view_height * wh_ratio, self.view_height)
         return new_size
 
-    def update_text_rect(self, real_pos: Tuple[Union[int, float], Union[int, float]]) -> None:
-        # pygame.key.set_text_input_rect(pygame.Rect(*real_pos, self.view_width, self.view_height))
-        pass
-
     def focus_get(self) -> None:
         self.focus = True
         self.display_caret = True
         self.caret_timer.reset_timer()
-        pygame.key.start_text_input()
 
-    def focus_lose(self) -> None:
+    def focus_lose(self, reset_scroll: bool = True) -> None:
+        if not self.focus:
+            return None
+        if reset_scroll:
+            self.x = 0
         self.focus = False
         self.display_caret = False
-        self.x = 0
-        pygame.key.stop_text_input()
         if (self.select_start != -1 and self.select_end != -1) or self.selecting:
             self.selecting = False
             self.select_start = -1
@@ -1123,6 +1218,8 @@ class EntryText:
                 self.x = -(width - self.caret_width - self.scroll_padding)
 
     def move_view_by_pos(self, direction: Literal["l", "r"]) -> None:
+        if not self.focus:
+            return None
         if direction == "l":
             if self.calc_text_size(self.text)[0] + self.caret_width <= self.view_width:
                 self.x = 0
@@ -1143,6 +1240,18 @@ class EntryText:
 
     def get_text(self) -> str:
         return self.text
+
+    def get_x(self) -> int:
+        return self.x
+
+    def get_caret_width(self) -> int:
+        return self.caret_width
+
+    def set_caret_index(self, index: int) -> None:
+        self.caret_index = index
+
+    def get_caret_index(self) -> int:
+        return self.caret_index
 
 
 class WidgetCanvas(BaseWidget):
@@ -1177,7 +1286,7 @@ class WidgetCanvas(BaseWidget):
                 if isinstance(widget_obj, Entry):
                     self.scroll_event()
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_event: Optional[pygame.event.Event]) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         if self.z_index == mouse_obj.get_z_index():
             pointer_events = True
             abs_pos = mouse_obj.get_pos()
@@ -1189,7 +1298,7 @@ class WidgetCanvas(BaseWidget):
             rel_mouse.set_pos(-1, -1)  # Dummy mouse object to prevent collision.
         collide = self.rect.collidepoint(mouse_obj.get_pos())
         for widget in self.child_widgets.values():
-            widget.update(rel_mouse, keyboard_event)
+            widget.update(rel_mouse, keyboard_events)
         self.render_widgets()
         if pointer_events and (not collide):
             mouse_obj.increment_z_index()

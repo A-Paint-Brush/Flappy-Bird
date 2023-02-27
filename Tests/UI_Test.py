@@ -23,24 +23,27 @@ class Window:
         self.resolution = (513, 590)
         self.fps = 60
         self.game_run = True
-        self.listen_events = [pygame.QUIT,
-                              pygame.MOUSEBUTTONDOWN,
-                              pygame.MOUSEBUTTONUP,
+        self.listen_events = (pygame.QUIT,
+                              pygame.WINDOWFOCUSLOST,
                               pygame.WINDOWENTER,
                               pygame.WINDOWLEAVE,
+                              pygame.MOUSEBUTTONDOWN,
+                              pygame.MOUSEBUTTONUP,
                               pygame.KEYDOWN,
                               pygame.KEYUP,
-                              pygame.TEXTINPUT]
+                              pygame.TEXTINPUT,
+                              pygame.TEXTEDITING)
         pygame.display.set_caption("GUI Toolkit")
         self.display = pygame.display.set_mode(self.resolution, pygame.HWSURFACE | pygame.DOUBLEBUF)
         pygame.event.set_blocked(None)
         pygame.event.set_allowed(self.listen_events)
+        pygame.key.stop_text_input()
         self.clock = pygame.time.Clock()
         self.widget_canvas = Widgets.WidgetCanvas(0, 0, *self.resolution, 1, "canvas1")
         self.widgets = Widgets.WidgetGroup()
         self.widgets.add_widget_canvas(self.widget_canvas)
         self.mouse = Mouse.Cursor()
-        self.key_event = None
+        self.key_events = []
         self.font = pygame.font.Font(resolve_path("./Fonts/Arial/normal.ttf"), 28)
         self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 16)
         self.counter1 = 0
@@ -141,23 +144,27 @@ class Window:
                                                      "button2"))
         while self.game_run:
             self.clock.tick(self.fps)
-            self.key_event = None
+            self.key_events.clear()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_run = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.mouse.set_button_state(event.button, True)
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    self.mouse.set_button_state(event.button, False)
                 elif event.type == pygame.WINDOWENTER:
                     self.mouse.mouse_enter()
                 elif event.type == pygame.WINDOWLEAVE:
                     self.mouse.mouse_leave()
-                elif event.type in (pygame.KEYDOWN, pygame.KEYUP, pygame.TEXTINPUT):
-                    self.key_event = event
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    self.mouse.set_button_state(event.button, True)
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    self.mouse.set_button_state(event.button, False)
+                elif event.type in (pygame.WINDOWFOCUSLOST,
+                                    pygame.KEYDOWN,
+                                    pygame.KEYUP,
+                                    pygame.TEXTINPUT,
+                                    pygame.TEXTEDITING):
+                    self.key_events.append(event)
             self.mouse.set_pos(*pygame.mouse.get_pos())
             self.mouse.reset_z_index()
-            self.widgets.update(self.mouse, self.key_event)
+            self.widgets.update(self.mouse, self.key_events)
             self.display.fill(GREY)
             self.widgets.draw(self.display)
             pygame.display.flip()

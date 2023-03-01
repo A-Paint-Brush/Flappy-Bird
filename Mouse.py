@@ -1,5 +1,4 @@
 from typing import *
-from os.path import normpath
 import pygame
 
 

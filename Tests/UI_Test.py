@@ -2,6 +2,7 @@ from typing import *
 import os.path
 import sys
 import pygame
+
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -122,17 +123,35 @@ class Window:
                                           1,
                                           "radio3")
         self.widget_canvas.add_widget(self.radio_group)
-        self.entry = Widgets.Entry(100,
-                                   465,
-                                   150,
-                                   30,
-                                   4,
-                                   self.mandarin_font,
-                                   BLACK,
-                                   "entry1")
-        self.widget_canvas.add_widget(self.entry)
+        self.entry1 = Widgets.Entry(10,
+                                    485,
+                                    150,
+                                    30,
+                                    4,
+                                    self.mandarin_font,
+                                    BLACK,
+                                    "entry1")
+        self.widget_canvas.add_widget(self.entry1)
+        self.entry2 = Widgets.Entry(180,
+                                    485,
+                                    150,
+                                    30,
+                                    4,
+                                    self.mandarin_font,
+                                    BLACK,
+                                    "entry2")
+        self.widget_canvas.add_widget(self.entry2)
+        self.entry3 = Widgets.Entry(350,
+                                    485,
+                                    150,
+                                    30,
+                                    4,
+                                    self.mandarin_font,
+                                    BLACK,
+                                    "entry3")
+        self.widget_canvas.add_widget(self.entry3)
         self.widget_canvas.add_widget(Widgets.Button(170,
-                                                     520,
+                                                     524,
                                                      190,
                                                      55,
                                                      1,
@@ -179,7 +198,7 @@ class Window:
     def add_counter2(self) -> None:
         self.counter2 += 1
 
-    def submit(self):
+    def submit(self) -> None:
         print("{}\n"
               "Sin Statistics:\n"
               "You gave her up {} times.\n"
@@ -187,15 +206,16 @@ class Window:
               "You {} run around and desert her.\n"
               "You {} stay with her forever and not part with her.\n"
               "You chose to {}.\n"
-              "You left her the message: '{}'".format("-" * 35,
-                                                      self.counter1,
-                                                      self.counter2,
-                                                      "DID" if self.checkbox1.get_data() else "DIDN'T",
-                                                      "DID" if self.checkbox2.get_data() else "DIDN'T",
-                                                      ("make her cry",
-                                                       "say goodbye",
-                                                       "tell a lie and hurt her")[self.radio_group.get_selected()],
-                                                      self.entry.get_entry_content()))
+              "The first message you left her is: '{}'\n"
+              "The second message you left her is: '{}'"
+              .format("-" * 35,
+                      self.counter1,
+                      self.counter2,
+                      "DID" if self.checkbox1.get_data() else "DIDN'T",
+                      "DID" if self.checkbox2.get_data() else "DIDN'T",
+                      ("make her cry", "say goodbye", "tell a lie and hurt her")[self.radio_group.get_selected()],
+                      self.entry1.get_entry_content(),
+                      self.entry2.get_entry_content()))
         self.counter1 = 0
         self.counter2 = 0
 

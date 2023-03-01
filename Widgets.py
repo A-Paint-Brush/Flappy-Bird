@@ -12,12 +12,19 @@ class BaseWidget(pygame.sprite.Sprite):
     def __init__(self, widget_name: str = "!base_widget"):
         super().__init__()
         self.widget_name = widget_name
+        self.parent = None
 
     def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         pass
 
     def get_widget_name(self) -> str:
         return self.widget_name
+
+    def set_parent(self, parent_widget) -> None:
+        self.parent = parent_widget
+
+    def has_parent(self) -> bool:
+        return self.parent is not None
 
 
 class AnimatedSurface(BaseWidget):
@@ -436,15 +443,14 @@ class Entry(BaseWidget):
         self.font = font
         self.fg = fg
         self.border_thickness = 2
+        self.text_input = False
         self.shift = False
         self.selecting = False
         self.start_select = True
         self.normal_border = BLACK
         self.active_border = BLUE
         self.current_border = self.normal_border
-        self.cursors = Mouse.CursorIcons()
-        self.mouse_icon = "normal"  # Literal["normal", "i_beam", "block_select"]
-        self.cursors.init_cursors()
+        self.block_select = False
         self.drag_pos = None
         self.drag_pos_recorded = False
         self.dnd_start_x = -1
@@ -501,21 +507,21 @@ class Entry(BaseWidget):
     def update_real_pos(self, real_pos: Tuple[Union[int, float], Union[int, float]]) -> None:
         self.real_x, self.real_y = real_pos
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> Tuple[bool, bool, bool]:
         collide = pygame.sprite.collide_rect(self, mouse_obj)
         if collide:
             if mouse_obj.get_button_state(1):
                 if (not self.lock) and (self.ime_canvas is None):
                     self.mouse_down = True
+                    self.text_input = True
                     self.text_canvas.focus_get()
-                    pygame.key.start_text_input()
+                    self.parent.raise_widget_layer(self.widget_name)
             else:
                 self.mouse_down = False
                 self.lock = False
             self.current_border = self.active_border
-            if (not self.text_canvas.dnd_event_ongoing()) and self.mouse_icon != "i_beam":
-                self.mouse_icon = "i_beam"
-                pygame.mouse.set_cursor(self.cursors.get_cursor(1))
+            if (not self.text_canvas.dnd_event_ongoing()) and self.block_select:
+                self.block_select = False
         else:
             if mouse_obj.get_button_state(1):
                 self.mouse_down = True
@@ -525,107 +531,105 @@ class Entry(BaseWidget):
                 self.mouse_down = False
                 self.lock = True
             self.current_border = self.normal_border
-            if (not self.text_canvas.dnd_event_ongoing()) and self.mouse_icon != "normal":
-                self.mouse_icon = "normal"
-                pygame.mouse.set_cursor(self.cursors.get_cursor(0))
+            if (not self.text_canvas.dnd_event_ongoing()) and self.block_select:
+                self.block_select = False
         abs_pos = mouse_obj.get_pos()
         rel_mouse = mouse_obj.copy()
         rel_mouse.set_pos(abs_pos[0] - (self.x + self.padding), abs_pos[1] - (self.y + self.padding))
-        if keyboard_events is not None:
-            for event in keyboard_events:
-                if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
-                    if event.mod & pygame.KMOD_SHIFT:
-                        self.shift = True
-                    else:
-                        if self.shift:
-                            self.shift = False
-                            if not self.start_select:
-                                self.text_canvas.end_selection()
-                                self.start_select = True
-                            elif self.text_canvas.selection_event_ongoing():
-                                # Special case for handling a text selection event that was initiated by a HOME or END
-                                # key-press.
-                                self.text_canvas.end_selection()
-                if event.type == pygame.WINDOWFOCUSLOST:
-                    self.stop_focus()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_TAB:
-                        self.text_canvas.add_text("\t".expandtabs(tabsize=4))
-                    elif event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
-                        if not self.sticky_keys[event.key][0]:
-                            if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                                if self.shift and self.start_select and \
-                                        (not self.text_canvas.selection_event_ongoing()):
-                                    # The last one in the boolean expression is to make sure a selection event won't be
-                                    # triggered again if it has already been initiated by a HOME or END key-press.
-                                    self.text_canvas.start_selection()
-                                    self.start_select = False
-                            self.sticky_keys[event.key][4]()
-                            self.sticky_keys[event.key][0] = True
-                            self.sticky_keys[event.key][1].reset_timer()
-                    elif event.key == pygame.K_HOME:
-                        self.text_canvas.caret_home(self.shift)
-                    elif event.key == pygame.K_END:
-                        self.text_canvas.caret_end(self.shift)
-                    elif event.key == pygame.K_RETURN:
-                        if self.ime_canvas is not None:
-                            self.stop_ime_input()
-                    elif event.mod & pygame.KMOD_CTRL:
-                        if event.key == pygame.K_c:
-                            self.text_canvas.copy_text()
-                        elif event.key == pygame.K_v:
-                            self.paste_text()
-                        elif event.key == pygame.K_a:
-                            self.text_canvas.select_all()
-                        elif event.key == pygame.K_x:
-                            if self.text_canvas.copy_text():
-                                self.text_canvas.backspace()
-                        elif event.key == pygame.K_z:
-                            if self.shift:
-                                self.text_canvas.redo()
-                            else:
-                                self.text_canvas.undo()
-                        elif event.key == pygame.K_y:
-                            self.text_canvas.redo()
-                elif event.type == pygame.KEYUP:
-                    if event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
-                        self.sticky_keys[event.key][0] = False
-                        self.sticky_keys[event.key][2] = False
-                elif event.type == pygame.TEXTINPUT:
-                    self.text_canvas.add_text(event.text)
-                elif event.type == pygame.TEXTEDITING:
-                    if self.ime_canvas is None and event.text:
-                        self.caret_restore_pos = self.text_canvas.get_caret_index()
-                        self.text_canvas.focus_lose(False)
-                        self.ime_canvas = EntryText(self.original_width - self.padding * 2,
-                                                    self.height - self.padding * 2,
-                                                    self.font,
-                                                    self.fg)
-                        self.ime_canvas.focus_get()
+        for event in keyboard_events:
+            if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                if event.mod & pygame.KMOD_SHIFT:
+                    self.shift = True
+                else:
+                    if self.shift:
+                        self.shift = False
+                        if not self.start_select:
+                            self.text_canvas.end_selection()
+                            self.start_select = True
+                        elif self.text_canvas.selection_event_ongoing():
+                            # Special case for handling a text selection event that was initiated by a HOME or END
+                            # key-press.
+                            self.text_canvas.end_selection()
+            if event.type == pygame.WINDOWFOCUSLOST:
+                self.stop_focus()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB:
+                    self.text_canvas.add_text("\t".expandtabs(tabsize=4))
+                elif event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
+                    if not self.sticky_keys[event.key][0]:
+                        if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
+                            if self.shift and self.start_select and \
+                                    (not self.text_canvas.selection_event_ongoing()):
+                                # The last one in the boolean expression is to make sure a selection event won't be
+                                # triggered again if it has already been initiated by a HOME or END key-press.
+                                self.text_canvas.start_selection()
+                                self.start_select = False
+                        self.sticky_keys[event.key][4]()
+                        self.sticky_keys[event.key][0] = True
+                        self.sticky_keys[event.key][1].reset_timer()
+                elif event.key == pygame.K_HOME:
+                    self.text_canvas.caret_home(self.shift)
+                elif event.key == pygame.K_END:
+                    self.text_canvas.caret_end(self.shift)
+                elif event.key == pygame.K_RETURN:
                     if self.ime_canvas is not None:
-                        self.ime_canvas.ime_update_text(event.text, event.start)
-                        width_diff = (self.padding
-                                      + self.text_canvas.get_x()
-                                      + self.text_canvas.calc_location_width()
-                                      - self.text_canvas.get_caret_width()
-                                      + self.ime_canvas.calc_text_size(self.ime_canvas.get_text())[0]
-                                      + self.ime_canvas.get_caret_width()) - self.original_width
-                        if width_diff > 0:
-                            # (self.original_width + width_diff, self.height)
-                            self.image = pygame.Surface((self.original_width + width_diff, self.height),
-                                                        flags=pygame.SRCALPHA)
+                        self.stop_ime_input()
+                elif event.mod & pygame.KMOD_CTRL:
+                    if event.key == pygame.K_c:
+                        self.text_canvas.copy_text()
+                    elif event.key == pygame.K_v:
+                        self.paste_text()
+                    elif event.key == pygame.K_a:
+                        self.text_canvas.select_all()
+                    elif event.key == pygame.K_x:
+                        if self.text_canvas.copy_text():
+                            self.text_canvas.backspace()
+                    elif event.key == pygame.K_z:
+                        if self.shift:
+                            self.text_canvas.redo()
                         else:
-                            self.image = pygame.Surface((self.original_width, self.height))
-                        text_rect = pygame.Rect(self.real_x + self.padding + self.text_canvas.get_x()
-                                                + self.text_canvas.calc_location_width()
-                                                - self.text_canvas.get_caret_width() + self.ime_canvas.calc_ime_x_pos(),
-                                                self.real_y + self.height - self.padding,
-                                                0,
-                                                0)
-                        # It is unclear what effect the size of the rect has on the IME candidate list.
-                        pygame.key.set_text_input_rect(text_rect)
-                        if not self.ime_canvas.get_text():
-                            self.stop_ime_input()
+                            self.text_canvas.undo()
+                    elif event.key == pygame.K_y:
+                        self.text_canvas.redo()
+            elif event.type == pygame.KEYUP:
+                if event.key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_BACKSPACE, pygame.K_DELETE):
+                    self.sticky_keys[event.key][0] = False
+                    self.sticky_keys[event.key][2] = False
+            elif event.type == pygame.TEXTINPUT:
+                self.text_canvas.add_text(event.text)
+            elif event.type == pygame.TEXTEDITING:
+                if self.ime_canvas is None and self.text_canvas.has_focus() and event.text:
+                    self.caret_restore_pos = self.text_canvas.get_caret_index()
+                    self.text_canvas.focus_lose(False)
+                    self.ime_canvas = EntryText(self.original_width - self.padding * 2,
+                                                self.height - self.padding * 2,
+                                                self.font,
+                                                self.fg)
+                    self.ime_canvas.focus_get()
+                if self.ime_canvas is not None:
+                    self.ime_canvas.ime_update_text(event.text, event.start)
+                    width_diff = (self.padding
+                                  + self.text_canvas.get_x()
+                                  + self.text_canvas.calc_location_width()
+                                  - self.text_canvas.get_caret_width()
+                                  + self.ime_canvas.calc_text_size(self.ime_canvas.get_text())[0]
+                                  + self.ime_canvas.get_caret_width()) - self.original_width
+                    if width_diff > 0:
+                        # (self.original_width + width_diff, self.height)
+                        self.image = pygame.Surface((self.original_width + width_diff, self.height),
+                                                    flags=pygame.SRCALPHA)
+                    else:
+                        self.image = pygame.Surface((self.original_width, self.height))
+                    text_rect = pygame.Rect(self.real_x + self.padding + self.text_canvas.get_x()
+                                            + self.text_canvas.calc_location_width()
+                                            - self.text_canvas.get_caret_width() + self.ime_canvas.calc_ime_x_pos(),
+                                            self.real_y + self.height - self.padding,
+                                            0,
+                                            0)
+                    # It is unclear what effect the size of the rect has on the IME candidate list.
+                    pygame.key.set_text_input_rect(text_rect)
+                    if not self.ime_canvas.get_text():
+                        self.stop_ime_input()
         for key in self.sticky_keys.values():
             if key[0]:
                 if key[1].get_time() > self.start_delay and (not key[2]):
@@ -658,9 +662,8 @@ class Entry(BaseWidget):
                 if self.text_canvas.text_block_selected() and (not self.text_canvas.dnd_event_ongoing()):
                     if abs(rel_mouse.get_pos()[0] - self.dnd_start_x) > self.dnd_distance:
                         self.text_canvas.start_dnd_event(rel_mouse)
-                        if self.mouse_icon != "block_select":
-                            self.mouse_icon = "block_select"
-                            pygame.mouse.set_cursor(self.cursors.get_cursor(2))
+                        if not self.block_select:
+                            self.block_select = True
                 if (not self.selecting) and \
                         (not self.text_canvas.dnd_event_ongoing()) and \
                         (not self.text_canvas.selection_rect_collide(rel_mouse.get_pos())):
@@ -696,13 +699,14 @@ class Entry(BaseWidget):
                              + self.text_canvas.calc_location_width()
                              - self.text_canvas.get_caret_width(),
                              self.padding))
+        return collide, self.block_select, self.text_input
 
     def stop_focus(self) -> None:
         if self.ime_canvas is not None:
             # The IME text will be deleted.
             self.stop_ime_input()
         self.text_canvas.focus_lose()
-        pygame.key.stop_text_input()
+        self.text_input = False
 
     def stop_ime_input(self):
         self.image = pygame.Surface((self.original_width, self.height))
@@ -1162,7 +1166,7 @@ class EntryText:
         self.surface = pygame.Surface((new_size[0] + self.caret_width, self.view_height))
         self.surface.fill(WHITE)
         if self.select_rect is not None:
-            pygame.draw.rect(self.surface, BLUE, self.select_rect, 0)
+            pygame.draw.rect(self.surface, (166, 210, 255), self.select_rect, 0)
         self.surface.blit(self.render_text(), (0, 0))
         if underline:
             for x in range(0, self.surface.get_width() - 2, 3):
@@ -1238,6 +1242,9 @@ class EntryText:
     def get_view_rect(self) -> pygame.Rect:
         return pygame.Rect(abs(self.x), self.y, self.view_width, self.view_height)
 
+    def has_focus(self) -> bool:
+        return self.focus
+
     def get_text(self) -> str:
         return self.text
 
@@ -1268,11 +1275,18 @@ class WidgetCanvas(BaseWidget):
         self.width = width
         self.height = height
         self.z_index = z_index
+        self.text_input = False
+        self.cursor_display = "arrow"  # Literal["arrow", "i_beam", "text_drag"]
+        self.cursor_icons = Mouse.CursorIcons()
+        self.cursor_icons.init_cursors()
         # Using per-pixel alpha is necessary because we don't know what colors the surface returned by
         # `pygame.font.Font.render` might contain, and the surfaces of most child widgets will contain text.
         self.image = pygame.Surface((width, height), flags=pygame.SRCALPHA)
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.child_widgets = {}
+        # Stores the order with which widgets will be rendered. The last item will be rendered last, and therefore
+        # will be on the topmost layer.
+        self.render_z_order = []
 
     def add_widget(self, widget_obj: Union[BaseWidget, RadioGroup]) -> None:
         if isinstance(widget_obj, RadioGroup):
@@ -1280,9 +1294,13 @@ class WidgetCanvas(BaseWidget):
                 self.add_widget(w)
         else:
             if widget_obj.get_widget_name() in self.child_widgets:
-                raise WidgetAppendError(widget_obj)
+                raise WidgetAppendError(widget_obj, 1)
+            elif widget_obj.has_parent():
+                raise WidgetAppendError(widget_obj, 2)
             else:
+                widget_obj.set_parent(self)
                 self.child_widgets[widget_obj.get_widget_name()] = widget_obj
+                self.render_z_order.append(widget_obj.get_widget_name())
                 if isinstance(widget_obj, Entry):
                     self.scroll_event()
 
@@ -1297,8 +1315,32 @@ class WidgetCanvas(BaseWidget):
             rel_mouse = Mouse.Cursor()
             rel_mouse.set_pos(-1, -1)  # Dummy mouse object to prevent collision.
         collide = self.rect.collidepoint(mouse_obj.get_pos())
+        return_values = []
         for widget in self.child_widgets.values():
-            widget.update(rel_mouse, keyboard_events)
+            value = widget.update(rel_mouse, keyboard_events)
+            if isinstance(widget, Entry):
+                return_values.append(value)
+        if return_values:
+            if any(i[2] for i in return_values):
+                if not self.text_input:
+                    self.text_input = True
+                    pygame.key.start_text_input()
+            else:
+                if self.text_input:
+                    self.text_input = False
+                    pygame.key.stop_text_input()
+            if any(i[1] for i in return_values):
+                if self.cursor_display != "text_drag":
+                    self.cursor_display = "text_drag"
+                    pygame.mouse.set_cursor(self.cursor_icons.get_cursor(2))
+            elif any(i[0] for i in return_values):
+                if self.cursor_display != "i_beam":
+                    self.cursor_display = "i_beam"
+                    pygame.mouse.set_cursor(self.cursor_icons.get_cursor(1))
+            else:
+                if self.cursor_display != "arrow":
+                    self.cursor_display = "arrow"
+                    pygame.mouse.set_cursor(self.cursor_icons.get_cursor(0))
         self.render_widgets()
         if pointer_events and (not collide):
             mouse_obj.increment_z_index()
@@ -1310,8 +1352,20 @@ class WidgetCanvas(BaseWidget):
 
     def render_widgets(self) -> None:
         self.image.fill((0, 0, 0, 0))
-        for w in self.child_widgets.values():
-            self.image.blit(w.image, w.rect)
+        for w_name in self.render_z_order:
+            self.image.blit(self.child_widgets[w_name].image, self.child_widgets[w_name].rect)
+
+    def raise_widget_layer(self, widget_name: str) -> None:
+        """
+        Raises the widget with the given name to the top of the render z-order.
+        """
+        if widget_name in self.render_z_order:
+            # Move the widget name to the end of the list.
+            index = self.render_z_order.index(widget_name)
+            if index < len(self.render_z_order) - 1:
+                self.render_z_order.append(self.render_z_order.pop(index))
+        else:
+            raise WidgetNameError(widget_name)
 
 
 class WidgetGroup(pygame.sprite.Group):
@@ -1321,15 +1375,39 @@ class WidgetGroup(pygame.sprite.Group):
 
     def add_widget_canvas(self, canvas_obj: WidgetCanvas) -> None:
         if canvas_obj.get_widget_name() in self.child_canvases:
-            raise CanvasAppendError(canvas_obj)
+            raise CanvasAppendError(canvas_obj, 1)
+        elif canvas_obj.has_parent():
+            raise CanvasAppendError(canvas_obj, 2)
         else:
+            canvas_obj.set_parent(self)
             self.child_canvases[canvas_obj.get_widget_name()] = canvas_obj
             self.add(canvas_obj)
 
 
+class WidgetNameError(Exception):
+    def __init__(self, widget_name: str):
+        """
+        Raised if a non-existent widget name is passed to a WidgetCanvas method.
+        """
+        super().__init__("The widget '{}' doesn't exist in this WidgetCanvas".format(widget_name))
+        self.widget_name = widget_name
+
+    def get_failed_name(self) -> str:
+        return self.widget_name
+
+
 class WidgetAppendError(Exception):
-    def __init__(self, widget: BaseWidget):
-        super().__init__("The WidgetCanvas already contains a widget with the ID '{}'".format(widget.get_widget_name()))
+    def __init__(self, widget: BaseWidget, error_type: int):
+        """
+        For handling errors when adding a widget to a WidgetCanvas.
+        """
+        if error_type == 1:
+            message = "The WidgetCanvas already contains a widget with the ID '{}'".format(widget.get_widget_name())
+        elif error_type == 2:
+            message = "The widget '{}' has already been added to a parent WidgetCanvas".format(widget.get_widget_name())
+        else:
+            message = "Unknown error"
+        super().__init__(message)
         self.failed_widget = widget
 
     def get_failed_widget(self) -> BaseWidget:
@@ -1337,9 +1415,19 @@ class WidgetAppendError(Exception):
 
 
 class CanvasAppendError(Exception):
-    def __init__(self, canvas: WidgetCanvas):
-        super().__init__("The WidgetGroup already contains a WidgetCanvas with the ID '{}'"
-                         .format(canvas.get_widget_name()))
+    def __init__(self, canvas: WidgetCanvas, error_type: int):
+        """
+        For handling errors when adding a WidgetCanvas to a WidgetGroup.
+        """
+        if error_type == 1:
+            message = "The WidgetGroup already contains a WidgetCanvas with the ID '{}'"\
+                      .format(canvas.get_widget_name())
+        elif error_type == 2:
+            message = "The WidgetCanvas '{}' has already been added to a parent WidgetGroup"\
+                      .format(canvas.get_widget_name())
+        else:
+            message = "Unknown error"
+        super().__init__(message)
         self.failed_canvas = canvas
 
     def get_failed_canvas(self) -> WidgetCanvas:

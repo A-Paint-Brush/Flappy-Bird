@@ -180,8 +180,8 @@ class Button(AnimatedSurface):
 
 class WordWrappedText(BaseWidget):
     def __init__(self,
-                 x: int,
-                 y: int,
+                 x: Union[int, float],
+                 y: Union[int, float],
                  text: str,
                  fg: Tuple[int, int, int],
                  width: int,
@@ -426,8 +426,8 @@ class Circle(pygame.sprite.Sprite):
 
 class Entry(BaseWidget):
     def __init__(self,
-                 x: int,
-                 y: int,
+                 x: Union[int, float],
+                 y: Union[int, float],
                  width: int,
                  height: int,
                  padding: int,
@@ -1096,8 +1096,8 @@ class EntryText:
 
     def calc_ime_x_pos(self) -> float:
         if self.caret_index >= len(self.text):
-            # Do not change the greater or equal to, because the caret pos reported by TEXTEDITING events seems to be
-            # out of range sometimes.
+            # Do not change the greater or equal to, because the caret pos reported by Pygame seems to go out of range
+            # sometimes.
             return self.calc_text_size(self.text)[0]
         else:
             return self.calc_text_size(self.text[:self.caret_index])[0] \
@@ -1183,7 +1183,7 @@ class EntryText:
         else:
             return text
 
-    def calc_text_size(self, text) -> Tuple[float, int]:
+    def calc_text_size(self, text: str) -> Tuple[float, int]:
         text_size = self.font.size(text)
         wh_ratio = text_size[0] / text_size[1]
         new_size = (self.view_height * wh_ratio, self.view_height)
@@ -1261,10 +1261,201 @@ class EntryText:
         return self.caret_index
 
 
+class Slider(BaseWidget):
+    def __init__(self,
+                 x: Union[int, float],
+                 y: Union[int, float],
+                 text_height: int,
+                 text_color: Tuple[int, int, int],
+                 line_length: int,
+                 line_thickness: int,
+                 dormant_line_color: Tuple[int, int, int],
+                 active_line_color: Tuple[int, int, int],
+                 thumb_width: int,
+                 thumb_height: int,
+                 dormant_color: Tuple[int, int, int],
+                 active_color: Tuple[int, int, int],
+                 font: pygame.font.Font,
+                 min_value: int,
+                 max_value: int,
+                 gauge_height: int = 0,
+                 widget_name: str = "!slider"):
+        super().__init__(widget_name)
+        self.x = x
+        self.y = y
+        self.font = font
+        self.text_height = text_height
+        self.text_color = text_color
+        self.line_length = line_length
+        self.line_thickness = line_thickness
+        self.dormant_line_color = dormant_line_color
+        self.active_line_color = active_line_color
+        self.thumb_width = thumb_width
+        self.text_padding = 10  # The padding between the number display and the slider.
+        self.gauge_height = gauge_height
+        self.max_text_width = self.resize_text(str(max_value))[0]
+        self.width = self.thumb_width + self.line_length + self.text_padding + self.max_text_width
+        self.height = max(text_height, thumb_height)
+        self.slider_thumb = SliderButton(self.height / 2 - thumb_height / 2,
+                                         self.thumb_width,
+                                         thumb_height,
+                                         dormant_color,
+                                         active_color,
+                                         self.line_length,
+                                         min_value,
+                                         max_value)
+        self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def render_surface(self) -> None:
+        self.image.fill((0, 0, 0, 0))
+        # Draw a line from 0 to the slider thumb's mid-point.
+        pygame.draw.rect(self.image,
+                         self.active_line_color,
+                         (self.thumb_width / 2,
+                          self.height / 2 - self.line_thickness / 2,
+                          self.slider_thumb.get_position()[0] + self.thumb_width / 2,
+                          self.line_thickness))
+        # Draw a line from the slider thumb's mid-point to the end of the slider.
+        pygame.draw.rect(self.image,
+                         self.dormant_line_color,
+                         (self.thumb_width + self.slider_thumb.get_position()[0],
+                          self.height / 2 - self.line_thickness / 2,
+                          self.line_length - (self.slider_thumb.get_position()[0] + self.thumb_width / 2),
+                          self.line_thickness))
+        if self.gauge_height > 0:
+            for x in range(0, self.slider_thumb.value_distance + 1):
+                # The lines are slightly inaccurate at large ranges due to float imprecision...
+                pygame.draw.line(self.image,
+                                 BLACK,
+                                 (self.thumb_width / 2 + self.slider_thumb.px_per_value * x, 0),
+                                 (self.thumb_width / 2 + self.slider_thumb.px_per_value * x, self.gauge_height - 1),
+                                 1)
+        self.image.blit(self.slider_thumb.get_surface(),
+                        (self.slider_thumb.get_position()[0] + self.thumb_width / 2,
+                         self.slider_thumb.get_position()[1]))
+        text_surf = self.render_text(str(self.slider_thumb.get_value()))
+        self.image.blit(text_surf,
+                        (sum((self.thumb_width, self.line_length, self.text_padding))
+                         + self.max_text_width / 2 - text_surf.get_width() / 2,
+                         self.height / 2 - text_surf.get_height() / 2))
+
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
+        relative_mouse = mouse_obj.copy()
+        relative_mouse.set_pos(mouse_obj.get_pos()[0] - self.x - self.thumb_width / 2,
+                               mouse_obj.get_pos()[1] - self.y - self.slider_thumb.get_position()[1])
+        self.slider_thumb.update(relative_mouse)
+        self.render_surface()
+
+    def render_text(self, text: str) -> pygame.Surface:
+        return pygame.transform.scale(self.font.render(text, True, self.text_color), self.resize_text(text))
+
+    def resize_text(self, text: str) -> Tuple[float, int]:
+        text_size = self.font.size(text)
+        wh_ratio = text_size[0] / text_size[1]
+        new_size = (self.text_height * wh_ratio, self.text_height)
+        return new_size
+
+    def get_slider_value(self) -> int:
+        return self.slider_thumb.get_value()
+
+
+class SliderButton(pygame.sprite.Sprite):
+    def __init__(self,
+                 y: Union[int, float],
+                 width: int,
+                 height: int,
+                 dormant_color: Tuple[int, int, int],
+                 active_color: Tuple[int, int, int],
+                 slider_length: int,
+                 min_value: int,
+                 max_value: int):
+        super().__init__()
+        self.x = -width / 2
+        self.y = y
+        self.width = width
+        self.height = height
+        self.dormant_color = dormant_color
+        self.active_color = active_color
+        self.current_color = self.dormant_color
+        self.slider_length = slider_length
+        self.min_value = min_value
+        self.max_value = max_value
+        self.value_distance = self.max_value - self.min_value
+        self.px_per_value = self.slider_length / self.value_distance
+        self.current_value = self.min_value
+        self.lock = True
+        self.mouse_down = False
+        self.mouse_offset = -1
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.set_colorkey(TRANSPARENT)
+        self.image.fill(TRANSPARENT)
+        self.render_surface()
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def render_surface(self) -> None:
+        # Fill can be skipped as the locations of visible pixels are never changed.
+        draw_vtp_rounded_rect(self.image, (0, 0), (self.width, self.height), self.current_color)
+
+    def update(self, mouse_obj: Mouse.Cursor) -> None:
+        # Handle mouse-drag movement.
+        if self.mouse_down and not mouse_obj.has_left():
+            self.x = mouse_obj.get_pos()[0] - self.mouse_offset
+            if self.x < -self.width / 2:
+                self.x = -self.width / 2
+            elif self.x > self.slider_length - self.width / 2:
+                self.x = self.slider_length - self.width / 2
+            mid_x = self.x + self.width / 2
+            self.current_value = math.floor(self.min_value + mid_x // self.px_per_value
+                                            + (mid_x % self.px_per_value > self.px_per_value / 2))
+            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        # Handle collisions.
+        collision = pygame.sprite.collide_mask(self, mouse_obj)
+        if collision is None:
+            if not mouse_obj.get_button_state(1) and self.mouse_down:
+                self.mouse_down = False
+                self.stop_drag()
+            self.lock = True
+            self.current_color = self.dormant_color
+        else:
+            if mouse_obj.get_button_state(1) and not self.mouse_down and not self.lock:
+                self.mouse_down = True
+                self.start_drag(mouse_obj)
+            elif not mouse_obj.get_button_state(1):
+                if self.mouse_down:
+                    self.mouse_down = False
+                    self.stop_drag()
+                self.lock = False
+            self.current_color = self.active_color
+        self.render_surface()
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def start_drag(self, mouse_obj) -> None:
+        self.mouse_offset = mouse_obj.get_pos()[0] - self.x
+
+    def stop_drag(self) -> None:
+        self.mouse_offset = -1
+        mid_x = self.x + self.width / 2
+        whole, remainder = divmod(mid_x, self.px_per_value)
+        if remainder:
+            mid_x = whole * self.px_per_value + (self.px_per_value if remainder > self.px_per_value / 2 else 0)
+            self.x = mid_x - self.width / 2
+
+    def get_position(self) -> Tuple[float, float]:
+        return self.x, self.y
+
+    def get_surface(self) -> pygame.Surface:
+        return self.image
+
+    def get_value(self) -> int:
+        return self.current_value
+
+
 class WidgetCanvas(BaseWidget):
     def __init__(self,
-                 x: float,
-                 y: float,
+                 x: Union[int, float],
+                 y: Union[int, float],
                  width: int,
                  height: int,
                  z_index: int = 1,
@@ -1420,11 +1611,11 @@ class CanvasAppendError(Exception):
         For handling errors when adding a WidgetCanvas to a WidgetGroup.
         """
         if error_type == 1:
-            message = "The WidgetGroup already contains a WidgetCanvas with the ID '{}'"\
-                      .format(canvas.get_widget_name())
+            message = "The WidgetGroup already contains a WidgetCanvas with the ID '{}'" \
+                .format(canvas.get_widget_name())
         elif error_type == 2:
-            message = "The WidgetCanvas '{}' has already been added to a parent WidgetGroup"\
-                      .format(canvas.get_widget_name())
+            message = "The WidgetCanvas '{}' has already been added to a parent WidgetGroup" \
+                .format(canvas.get_widget_name())
         else:
             message = "Unknown error"
         super().__init__(message)

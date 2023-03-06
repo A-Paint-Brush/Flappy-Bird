@@ -86,6 +86,17 @@ def draw_button(surface: pygame.Surface,
     surface.blit(text_surf, (surface.get_size()[0] / 2 - text_width / 2, surface.get_size()[1] / 2 - text_height / 2))
 
 
+def draw_vtp_rounded_rect(surface: pygame.Surface,
+                          pos: Tuple[int, int],
+                          size: Tuple[int, int],
+                          color: Tuple[int, int, int]) -> None:
+    # v.t.p. = vertical two-point
+    y_positions = (pos[1] + size[0] / 2, pos[1] + size[1] - size[0] / 2)
+    for y in y_positions:
+        pygame.draw.circle(surface, color, (pos[0] + size[0] / 2, y), size[0] / 2)
+    pygame.draw.rect(surface, color, (pos[0], pos[1] + size[0] / 2, size[0], size[1] - size[0]), 0)
+
+
 def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]:
     # region Wrap words
     words = string.split(" ")

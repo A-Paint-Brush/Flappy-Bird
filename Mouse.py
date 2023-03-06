@@ -83,6 +83,7 @@ class Cursor(pygame.sprite.Sprite):
             new_cur.set_button_state(index, button)
         new_cur.z_index = self.z_index
         new_cur.set_pos(self.x, self.y)
+        new_cur.leave = self.leave
         return new_cur
 
     def reset_z_index(self) -> None:
@@ -126,3 +127,6 @@ class Cursor(pygame.sprite.Sprite):
         if any(self.buttons):
             for i in range(len(self.buttons)):
                 self.buttons[i] = False
+
+    def has_left(self) -> bool:
+        return self.leave

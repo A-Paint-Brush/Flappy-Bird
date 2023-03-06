@@ -21,7 +21,7 @@ def resolve_path(rel_path: str) -> str:
 class Window:
     def __init__(self):
         pygame.init()
-        self.resolution = (513, 590)
+        self.resolution = (513, 640)
         self.fps = 60
         self.game_run = True
         self.listen_events = (pygame.QUIT,
@@ -124,7 +124,7 @@ class Window:
                                           "radio3")
         self.widget_canvas.add_widget(self.radio_group)
         self.entry1 = Widgets.Entry(10,
-                                    485,
+                                    530,
                                     150,
                                     30,
                                     4,
@@ -133,7 +133,7 @@ class Window:
                                     "entry1")
         self.widget_canvas.add_widget(self.entry1)
         self.entry2 = Widgets.Entry(180,
-                                    485,
+                                    530,
                                     150,
                                     30,
                                     4,
@@ -142,7 +142,7 @@ class Window:
                                     "entry2")
         self.widget_canvas.add_widget(self.entry2)
         self.entry3 = Widgets.Entry(350,
-                                    485,
+                                    530,
                                     150,
                                     30,
                                     4,
@@ -150,9 +150,27 @@ class Window:
                                     BLACK,
                                     "entry3")
         self.widget_canvas.add_widget(self.entry3)
-        self.widget_canvas.add_widget(Widgets.Button(170,
-                                                     524,
-                                                     190,
+        self.slider = Widgets.Slider(40,
+                                     490,
+                                     25,
+                                     BLACK,
+                                     400,
+                                     5,
+                                     (250, 50, 50),
+                                     (0, 255, 0),
+                                     10,
+                                     30,
+                                     (0, 130, 205),
+                                     (155, 205, 0),
+                                     self.mandarin_font,
+                                     1,
+                                     100,
+                                     7,
+                                     "slider1")
+        self.widget_canvas.add_widget(self.slider)
+        self.widget_canvas.add_widget(Widgets.Button(180,
+                                                     572,
+                                                     150,
                                                      55,
                                                      1,
                                                      BLACK,
@@ -200,14 +218,14 @@ class Window:
 
     def submit(self) -> None:
         print("{}\n"
-              "Sin Statistics:\n"
+              "Love Stats:\n"
               "You gave her up {} times.\n"
               "You let her down {} times.\n"
               "You {} run around and desert her.\n"
               "You {} stay with her forever and not part with her.\n"
               "You chose to {}.\n"
-              "The first message you left her is: '{}'\n"
-              "The second message you left her is: '{}'"
+              "The three messages you left her are: '{}', '{}', '{}'.\n"
+              "You're {}% in love with Miss Rickietta."
               .format("-" * 35,
                       self.counter1,
                       self.counter2,
@@ -215,7 +233,9 @@ class Window:
                       "DID" if self.checkbox2.get_data() else "DIDN'T",
                       ("make her cry", "say goodbye", "tell a lie and hurt her")[self.radio_group.get_selected()],
                       self.entry1.get_entry_content(),
-                      self.entry2.get_entry_content()))
+                      self.entry2.get_entry_content(),
+                      self.entry3.get_entry_content(),
+                      self.slider.get_slider_value()))
         self.counter1 = 0
         self.counter2 = 0
 

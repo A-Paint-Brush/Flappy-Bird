@@ -2,7 +2,10 @@ from typing import *
 import pygame.transform
 BLACK = (0, 0, 0)
 ORANGE = (255, 160, 20)
-GREY = (209, 209, 209)
+LIGHT_GREY = (240, 240, 240)
+DARK_GREY = (209, 209, 209)
+DARKER_GREY = (205, 205, 205)
+EVEN_DARKER_GREY = (166, 166, 166)
 WHITE = (255, 255, 255)
 CYAN = (112, 197, 206)
 YELLOW = (222, 216, 149)

@@ -41,7 +41,7 @@ class ToastNotifier(pygame.sprite.Sprite):
                       self.body_font.size("|")[1] * len(self.body_text) + \
                       self.corner_radius * 2
         self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
-        self.current_color = DARK_GREY
+        self.current_color = GREY3
         self.lock = True
         self.mouse_down = False
         self.render_surface(self.current_color)
@@ -118,7 +118,7 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def reset_hover_state(self) -> None:
-        self.current_color = DARK_GREY
+        self.current_color = GREY3
         self.render_surface(self.current_color)
 
     def hover_event(self, mouse_obj: Mouse.Cursor) -> None:

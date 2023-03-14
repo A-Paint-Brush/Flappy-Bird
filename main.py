@@ -61,6 +61,7 @@ class MainProc:
                               pygame.VIDEORESIZE,
                               pygame.MOUSEBUTTONDOWN,
                               pygame.MOUSEBUTTONUP,
+                              pygame.MOUSEWHEEL,
                               pygame.KEYDOWN,
                               pygame.KEYUP,
                               pygame.TEXTINPUT,
@@ -86,6 +87,7 @@ class MainProc:
         # endregion
         while self.game_run:
             self.clock.tick(self.fps)
+            self.mouse_obj.reset_scroll()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_run = False
@@ -100,6 +102,8 @@ class MainProc:
                     self.mouse_obj.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_obj.set_button_state(event.button, False)
+                elif event.type == pygame.MOUSEWHEEL:
+                    self.mouse_obj.push_scroll(event.y)
                 elif event.type == pygame.KEYDOWN:
                     # region Key Sequence Detection
                     self.check_key_sequence(self.konami, event.key, self.toggle_rainbow)
@@ -120,7 +124,7 @@ class MainProc:
             self.mouse_obj.reset_z_index()  # Set mouse event processing z-order back to top.
             self.notifiers.send_mouse_pos(self.mouse_obj)
             if self.state_data.game_state == "menu":
-                self.ui_widgets.update(self.mouse_obj, pygame.event.Event(pygame.JOYBUTTONDOWN))
+                self.ui_widgets.update(self.mouse_obj, [])
                 self.tiles_group.move()
                 self.tiles_group.reset_pos()
             elif self.state_data.game_state in ("waiting", "started", "dying"):

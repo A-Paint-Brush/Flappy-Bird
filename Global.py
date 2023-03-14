@@ -2,10 +2,12 @@ from typing import *
 import pygame.transform
 BLACK = (0, 0, 0)
 ORANGE = (255, 160, 20)
-LIGHT_GREY = (240, 240, 240)
-DARK_GREY = (209, 209, 209)
-DARKER_GREY = (205, 205, 205)
-EVEN_DARKER_GREY = (166, 166, 166)
+GREY1 = (240, 240, 240)
+GREY2 = (218, 218, 218)
+GREY3 = (209, 209, 209)
+GREY4 = (205, 205, 205)
+GREY5 = (166, 166, 166)
+GREY6 = (96, 96, 96)
 WHITE = (255, 255, 255)
 CYAN = (112, 197, 206)
 YELLOW = (222, 216, 149)
@@ -98,6 +100,18 @@ def draw_vtp_rounded_rect(surface: pygame.Surface,
     for y in y_positions:
         pygame.draw.circle(surface, color, (pos[0] + size[0] / 2, y), size[0] / 2)
     pygame.draw.rect(surface, color, (pos[0], pos[1] + size[0] / 2, size[0], size[1] - size[0]), 0)
+
+
+def draw_triangle(surface: pygame.Surface,
+                  pos: Tuple[int, int],
+                  size: Tuple[int, int],
+                  color: Tuple[int, int, int],
+                  flip: bool) -> None:
+    # Draws upward triangle if flip is False.
+    vertices = ((pos[0], pos[1] if flip else pos[1] + size[1] - 1),
+                (pos[0] + size[0] - 1, pos[1] if flip else pos[1] + size[1] - 1),
+                (pos[0] + round(size[0] / 2), pos[1] + size[1] - 1 if flip else pos[1]))
+    pygame.draw.polygon(surface, color, vertices)
 
 
 def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]:

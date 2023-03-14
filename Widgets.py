@@ -263,7 +263,7 @@ class Box(pygame.sprite.Sprite):
         self.checked = False
         self.image = pygame.Surface((length, length))
         self.image.set_colorkey(TRANSPARENT)
-        self.normal_color = DARK_GREY
+        self.normal_color = GREY3
         self.active_color = CYAN
         self.current_color = self.normal_color
         self.render_surface()
@@ -385,7 +385,7 @@ class Circle(pygame.sprite.Sprite):
         self.radius = radius
         self.border = border
         self.callback = on_click
-        self.normal_color = DARK_GREY
+        self.normal_color = GREY3
         self.active_color = CYAN
         self.current_color = self.normal_color
         self.selected = selected
@@ -1461,7 +1461,10 @@ class ScrollBar(BaseWidget):
         self.width = 20
         self.height = None
         self.scroll_factor = None
+        self.button_scroll_amount = 10
         self.thumb = None
+        self.up_button = None
+        self.down_button = None
         self.image = None
         self.rect = None
 
@@ -1485,21 +1488,39 @@ class ScrollBar(BaseWidget):
         else:
             # 'scrollbar_distance' is zero, that means no scrolling is needed.
             self.scroll_factor = None
+        self.up_button = ScrollButton(0, 0, self.width, "up")
+        self.down_button = ScrollButton(0, self.height - self.width, self.width, "down")
 
     def render_surface(self) -> None:
-        self.image.fill(LIGHT_GREY)
-        if self.scroll_factor is not None:
-            # Only render the scroll thumb if scrolling is allowed, as there is no point showing a fully extended thumb.
-            self.image.blit(self.thumb.image, (self.thumb.x, self.thumb.y + self.width))
+        self.image.fill(GREY1)
+        self.image.blit(self.thumb.image, (self.thumb.x, self.thumb.y + self.width))
+        self.image.blit(self.up_button.image, self.up_button.rect)
+        self.image.blit(self.down_button.image, self.down_button.rect)
 
     def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         relative_mouse = mouse_obj.copy()
+        relative_mouse.set_pos(mouse_obj.get_pos()[0] - self.x, mouse_obj.get_pos()[1] - self.y)
+        up_val = self.up_button.update(relative_mouse)
+        down_val = self.down_button.update(relative_mouse)
         relative_mouse.set_pos(mouse_obj.get_pos()[0] - self.x, mouse_obj.get_pos()[1] - self.y - self.width)
         did_scroll = self.thumb.update(relative_mouse)
-        if did_scroll and self.scroll_factor is not None:
-            # If the scrollbar was dragged, and there is space to scroll...
-            self.parent.scroll_event(-(self.scroll_factor * self.thumb.y))
+        if self.scroll_factor is not None:
+            if did_scroll:
+                # If the scrollbar was dragged, and there is space to scroll...
+                self.parent.set_scroll_offset(-(self.scroll_factor * self.thumb.y))
+            else:
+                if mouse_obj.get_scroll() != 0:
+                    self.scroll_by_content(mouse_obj.get_scroll())
+                if up_val:
+                    self.scroll_by_content(+self.button_scroll_amount)
+                if down_val:
+                    self.scroll_by_content(-self.button_scroll_amount)
         self.render_surface()
+
+    def scroll_by_content(self, value: int) -> None:
+        new_content_y = self.parent.add_scroll_offset(value)
+        new_thumb_y = -new_content_y / self.scroll_factor
+        self.thumb.force_set_pos(new_thumb_y)
 
 
 class ScrollThumb(pygame.sprite.Sprite):
@@ -1514,8 +1535,9 @@ class ScrollThumb(pygame.sprite.Sprite):
         self.height = thumb_length
         self.track_length = scrollbar_height - self.width * 2
         self.scroll_distance = self.track_length - self.height
-        self.dormant_color = DARKER_GREY
-        self.active_color = EVEN_DARKER_GREY
+        self.dormant_color = GREY4
+        self.active_color = GREY5
+        self.dragged_color = GREY6
         self.current_color = self.dormant_color
         self.lock = True
         self.mouse_down = False
@@ -1526,6 +1548,10 @@ class ScrollThumb(pygame.sprite.Sprite):
 
     def render_surface(self) -> None:
         self.image.fill(self.current_color)
+
+    def force_set_pos(self, new_y: float) -> None:
+        self.y = new_y
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def update(self, mouse_obj: Mouse.Cursor) -> bool:
         did_scroll = False
@@ -1554,6 +1580,8 @@ class ScrollThumb(pygame.sprite.Sprite):
                 self.stop_drag()
             self.lock = True
             self.current_color = self.dormant_color
+        if did_scroll:
+            self.current_color = self.dragged_color
         self.render_surface()
         return did_scroll
 
@@ -1565,12 +1593,70 @@ class ScrollThumb(pygame.sprite.Sprite):
 
 
 class ScrollButton(pygame.sprite.Sprite):
-    def __init__(self, x: Union[int, float], y: Union[int, float], button_length: int):
+    def __init__(self,
+                 x: Union[int, float],
+                 y: Union[int, float],
+                 button_length: int,
+                 direction: Literal["up", "down"]):
         super().__init__()
         self.x = x
         self.y = y
         self.length = button_length
+        self.direction = direction
+        self.arrow_size = (self.length - 11, self.length - 15)
+        self.lock = True
+        self.mouse_down = False
+        self.start_delay = 0.2
+        self.repeat_delay = 0.1
+        self.button_timer = Time.Time()
+        self.repeating = False
+        # Color format: (bg, fg)
+        self.dormant_color = (GREY1, GREY6)
+        self.active_color = (GREY2, BLACK)
+        self.dragged_color = (GREY6, WHITE)
+        self.current_color = self.dormant_color
+        self.image = pygame.Surface((self.length, self.length))
         self.rect = pygame.Rect(self.x, self.y, self.length, self.length)
+
+    def render_surface(self) -> None:
+        self.image.fill(self.current_color[0])
+        draw_triangle(self.image,
+                      (round(self.length / 2 - self.arrow_size[0] / 2) - 1,
+                       round(self.length / 2 - self.arrow_size[1] / 2) - 1),
+                      self.arrow_size,
+                      self.current_color[1],
+                      self.direction == "down")
+
+    def update(self, mouse_obj: Mouse.Cursor) -> bool:
+        trigger = False
+        collision = pygame.sprite.collide_rect(self, mouse_obj)
+        if collision:
+            if mouse_obj.get_button_state(1) and not self.mouse_down and not self.lock:
+                self.mouse_down = True
+                trigger = True
+                self.button_timer.reset_timer()
+            elif not mouse_obj.get_button_state(1):
+                if self.mouse_down:
+                    self.mouse_down = False
+                self.lock = False
+            self.current_color = self.active_color
+        else:
+            if not mouse_obj.get_button_state(1) and self.mouse_down:
+                self.mouse_down = False
+            self.lock = True
+            self.current_color = self.dormant_color
+        if self.mouse_down:
+            if self.repeating and self.button_timer.get_time() > self.repeat_delay:
+                trigger = True
+                self.button_timer.reset_timer()
+            elif self.button_timer.get_time() > self.start_delay:
+                self.repeating = True
+                self.button_timer.reset_timer()
+            self.current_color = self.dragged_color
+        else:
+            self.repeating = False
+        self.render_surface()
+        return trigger
 
 
 class WidgetCanvas(BaseWidget):
@@ -1588,6 +1674,7 @@ class WidgetCanvas(BaseWidget):
         self.width = width
         self.height = height
         self.padding_bottom = padding_bottom
+        self.scroll_constant = 20
         self.z_index = z_index
         self.text_input = False
         self.cursor_display = "arrow"  # Literal["arrow", "i_beam", "text_drag"]
@@ -1621,10 +1708,25 @@ class WidgetCanvas(BaseWidget):
                                                 self.y + widget_obj.get_pos()[1] + self.y_scroll_offset))
 
     def get_content_height(self) -> int:
-        return max(widget.y + widget.image.get_height() for widget in self.child_widgets.values()) + self.padding_bottom
+        return max((widget.y + widget.image.get_height())
+                   for widget in self.child_widgets.values()
+                   if not isinstance(widget, ScrollBar)) + self.padding_bottom
 
-    def scroll_event(self, offset: int) -> None:
+    def add_scroll_offset(self, amount: int) -> float:
+        """Adds a value to the current scroll offset and returns the result."""
+        self.y_scroll_offset += amount + math.copysign(self.scroll_constant, amount)
+        if self.y_scroll_offset > 0:
+            self.y_scroll_offset = 0
+        elif self.y_scroll_offset < -(self.get_content_height() - self.height):
+            self.y_scroll_offset = -(self.get_content_height() - self.height)
+        self.update_ime_rect()
+        return self.y_scroll_offset
+
+    def set_scroll_offset(self, offset: int) -> None:
         self.y_scroll_offset = offset
+        self.update_ime_rect()
+
+    def update_ime_rect(self) -> None:
         for widget in self.child_widgets.values():
             if isinstance(widget, Entry):
                 widget.update_real_pos((self.x + widget.get_pos()[0],
@@ -1647,9 +1749,13 @@ class WidgetCanvas(BaseWidget):
                 value = widget.update(scrolled_rel_mouse, keyboard_events)
                 return_values.append(value)
             elif isinstance(widget, ScrollBar):
-                abs_pos = mouse_obj.get_pos()
-                rel_mouse = mouse_obj.copy()
-                rel_mouse.set_pos(abs_pos[0] - self.x, abs_pos[1] - self.y)
+                if self.z_index == mouse_obj.get_z_index():
+                    abs_pos = mouse_obj.get_pos()
+                    rel_mouse = mouse_obj.copy()
+                    rel_mouse.set_pos(abs_pos[0] - self.x, abs_pos[1] - self.y)
+                else:
+                    rel_mouse = Mouse.Cursor()
+                    rel_mouse.mouse_leave()
                 widget.update(rel_mouse, keyboard_events)
             else:
                 widget.update(scrolled_rel_mouse, keyboard_events)

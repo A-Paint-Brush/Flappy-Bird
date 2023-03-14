@@ -35,6 +35,7 @@ class Window:
                               pygame.WINDOWLEAVE,
                               pygame.MOUSEBUTTONDOWN,
                               pygame.MOUSEBUTTONUP,
+                              pygame.MOUSEWHEEL,
                               pygame.KEYDOWN,
                               pygame.KEYUP,
                               pygame.TEXTINPUT,
@@ -54,6 +55,7 @@ class Window:
         self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 16)
         self.counter1 = 0
         self.counter2 = 0
+        # region Initialize Widgets
         text = self.font.render("Give her up", True, BLACK)
         btn_surf = pygame.Surface((text.get_size()[0] + 30, text.get_size()[1] + 20))
         btn_surf.fill((215, 215, 215))
@@ -185,9 +187,11 @@ class Window:
                                                      self.submit,
                                                      "button2"))
         self.widget_canvas.add_widget(Widgets.ScrollBar("scrollbar1"))
+        # endregion
         while self.game_run:
             self.clock.tick(self.fps)
             self.key_events.clear()
+            self.mouse.reset_scroll()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.game_run = False
@@ -199,6 +203,8 @@ class Window:
                     self.mouse.set_button_state(event.button, True)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse.set_button_state(event.button, False)
+                elif event.type == pygame.MOUSEWHEEL:
+                    self.mouse.push_scroll(event.y)
                 elif event.type in (pygame.WINDOWFOCUSLOST,
                                     pygame.KEYDOWN,
                                     pygame.KEYUP,

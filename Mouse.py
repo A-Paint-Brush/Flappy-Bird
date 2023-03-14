@@ -67,6 +67,7 @@ class Cursor(pygame.sprite.Sprite):
         super().__init__()
         # Stores the button state of each mouse button, in the form of [button1, button2, button3]
         self.buttons = [False] * 3
+        self.scroll_amount = 0
         # Used to determine if the mouse hover event should continue to pass down to the next lower z-level
         self.z_index = 1
         self.leave = False
@@ -83,6 +84,7 @@ class Cursor(pygame.sprite.Sprite):
             new_cur.set_button_state(index, button)
         new_cur.z_index = self.z_index
         new_cur.set_pos(self.x, self.y)
+        new_cur.scroll_amount = self.scroll_amount
         new_cur.leave = self.leave
         return new_cur
 
@@ -116,13 +118,23 @@ class Cursor(pygame.sprite.Sprite):
         if button_number <= len(self.buttons):
             return self.buttons[button_number - 1]
 
+    def reset_scroll(self) -> None:
+        self.scroll_amount = 0
+
+    def push_scroll(self, amount: int) -> None:
+        if not self.leave:
+            self.scroll_amount += amount
+
+    def get_scroll(self) -> int:
+        return self.scroll_amount
+
     def mouse_enter(self) -> None:
         self.leave = False
 
     def mouse_leave(self) -> None:
-        """Should be called when the mouse cursor exits the window.
-        """
+        """Should be called when the mouse cursor exits the window."""
         self.set_pos(-1, -1)
+        self.scroll_amount = 0
         self.leave = True
         if any(self.buttons):
             for i in range(len(self.buttons)):

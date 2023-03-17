@@ -1659,6 +1659,61 @@ class ScrollButton(pygame.sprite.Sprite):
         return trigger
 
 
+class Spinner(BaseWidget):
+    def __init__(self,
+                 x: Union[int, float],
+                 y: Union[int, float],
+                 size: int,
+                 thickness: int,
+                 lit_length: int,
+                 speed: Union[int, float],
+                 unlit_color: Tuple[int, int, int],
+                 lit_color: Tuple[int, int, int],
+                 widget_name: str = "!spinner"):
+        super().__init__(widget_name)
+        self.x = x
+        self.y = y
+        self.length = size
+        self.lit_length = lit_length
+        self.thickness = thickness
+        self.speed = speed
+        self.angle = 0
+        self.dr_factor = math.pi / 180
+        self.delta_timer = Time.Time()
+        self.unlit_color = unlit_color
+        self.lit_color = lit_color
+        self.image = pygame.Surface((self.length, self.length))
+        self.image.set_colorkey(TRANSPARENT)
+        self.rect = pygame.Rect(self.x, self.y, self.length, self.length)
+        self.delta_timer.reset_timer()
+
+    def render_surface(self) -> None:
+        # radians = degrees × (π ÷ 180)
+        # Angle system: 0° = EAST, 90° = NORTH, 180° = WEST, 360° = SOUTH
+        self.image.fill(TRANSPARENT)
+        pygame.draw.arc(self.image,
+                        self.unlit_color,
+                        (0, 0, self.length, self.length),
+                        0,
+                        360 * self.dr_factor,
+                        self.thickness)
+        start_angle = (360 - ((self.angle + self.lit_length) % 360)) * self.dr_factor
+        end_angle = (360 - self.angle) * self.dr_factor
+        pygame.draw.arc(self.image,
+                        self.lit_color,
+                        (0, 0, self.length, self.length),
+                        start_angle,
+                        end_angle,
+                        self.thickness)
+
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
+        d_t = self.delta_timer.get_time()
+        self.delta_timer.reset_timer()
+        self.angle += self.speed * d_t
+        self.angle %= 360
+        self.render_surface()
+
+
 class WidgetCanvas(BaseWidget):
     def __init__(self,
                  x: Union[int, float],

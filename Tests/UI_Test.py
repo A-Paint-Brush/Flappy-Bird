@@ -186,6 +186,15 @@ class Window:
                                                      "Submit",
                                                      self.submit,
                                                      "button2"))
+        self.widget_canvas.add_widget(Widgets.Spinner(40,
+                                                      580,
+                                                      100,
+                                                      15,
+                                                      90,
+                                                      250,
+                                                      (205, 205, 205),
+                                                      (26, 134, 219),
+                                                      "spinner1"))
         self.widget_canvas.add_widget(Widgets.ScrollBar("scrollbar1"))
         # endregion
         while self.game_run:

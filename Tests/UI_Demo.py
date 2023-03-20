@@ -46,26 +46,25 @@ class Window:
         pygame.event.set_allowed(self.listen_events)
         pygame.key.stop_text_input()
         self.clock = pygame.time.Clock()
-        self.widget_canvas = Widgets.WidgetCanvas(0, 0, self.resolution[0], self.resolution[1], 20, 1, "canvas1")
-        self.widgets = Widgets.WidgetGroup()
-        self.widgets.add_widget_canvas(self.widget_canvas)
+        self.content_frame = Widgets.Frame(0, 0, self.resolution[0], self.resolution[1], 20, 2, "canvas1")
         self.mouse = Mouse.Cursor()
         self.key_events = []
         self.font = pygame.font.Font(resolve_path("./Fonts/Arial/normal.ttf"), 28)
         self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 16)
         self.counter1 = 0
         self.counter2 = 0
+        self.transition = None
+        self.transition_ready = False
         # region Initialize Widgets
         text = self.font.render("Give her up", True, BLACK)
         btn_surf = pygame.Surface((text.get_size()[0] + 30, text.get_size()[1] + 20))
         btn_surf.fill((215, 215, 215))
         btn_surf.blit(text, center_widget(btn_surf.get_size(), text.get_size()))
-        self.widget_canvas.add_widget(Widgets.AnimatedSurface(40,
+        self.content_frame.add_widget(Widgets.AnimatedSurface(40,
                                                               20,
                                                               btn_surf,
-                                                              self.add_counter1,
-                                                              "surface1"))
-        self.widget_canvas.add_widget(Widgets.Button(270,
+                                                              self.add_counter1))
+        self.content_frame.add_widget(Widgets.Button(270,
                                                      20,
                                                      190,
                                                      55,
@@ -86,7 +85,7 @@ class Window:
                                           20,
                                           1,
                                           "checkbox1")
-        self.widget_canvas.add_widget(self.checkbox1)
+        self.content_frame.add_widget(self.checkbox1)
         self.checkbox2 = Widgets.Checkbox(252,
                                           90,
                                           "Together forever and never to part?",
@@ -97,39 +96,39 @@ class Window:
                                           20,
                                           1,
                                           "checkbox2")
-        self.widget_canvas.add_widget(self.checkbox2)
+        self.content_frame.add_widget(self.checkbox2)
         self.radio_group = Widgets.RadioGroup()
-        self.radio_group.add_radio_button(12,
-                                          280,
+        self.radio_group.create_radio_button(12,
+                                             280,
                                           "Make her cry",
-                                          BLACK,
-                                          ORANGE,
-                                          150,
-                                          self.font,
-                                          20,
-                                          1,
+                                             BLACK,
+                                             ORANGE,
+                                             150,
+                                             self.font,
+                                             20,
+                                             1,
                                           "radio1")
-        self.radio_group.add_radio_button(172,
-                                          280,
+        self.radio_group.create_radio_button(172,
+                                             280,
                                           "Say goodbye",
-                                          BLACK,
-                                          ORANGE,
-                                          150,
-                                          self.font,
-                                          20,
-                                          1,
+                                             BLACK,
+                                             ORANGE,
+                                             150,
+                                             self.font,
+                                             20,
+                                             1,
                                           "radio2")
-        self.radio_group.add_radio_button(332,
-                                          280,
+        self.radio_group.create_radio_button(332,
+                                             280,
                                           "Tell a lie and hurt her",
-                                          BLACK,
-                                          ORANGE,
-                                          150,
-                                          self.font,
-                                          20,
-                                          1,
+                                             BLACK,
+                                             ORANGE,
+                                             150,
+                                             self.font,
+                                             20,
+                                             1,
                                           "radio3")
-        self.widget_canvas.add_widget(self.radio_group)
+        self.content_frame.add_widget(self.radio_group)
         self.slider = Widgets.Slider(30,
                                      490,
                                      25,
@@ -145,9 +144,8 @@ class Window:
                                      self.mandarin_font,
                                      1,
                                      100,
-                                     7,
-                                     "slider1")
-        self.widget_canvas.add_widget(self.slider)
+                                     7)
+        self.content_frame.add_widget(self.slider)
         self.entry1 = Widgets.Entry(10,
                                     530,
                                     150,
@@ -156,7 +154,7 @@ class Window:
                                     self.mandarin_font,
                                     BLACK,
                                     "entry1")
-        self.widget_canvas.add_widget(self.entry1)
+        self.content_frame.add_widget(self.entry1)
         self.entry2 = Widgets.Entry(170,
                                     530,
                                     150,
@@ -165,7 +163,7 @@ class Window:
                                     self.mandarin_font,
                                     BLACK,
                                     "entry2")
-        self.widget_canvas.add_widget(self.entry2)
+        self.content_frame.add_widget(self.entry2)
         self.entry3 = Widgets.Entry(330,
                                     530,
                                     150,
@@ -174,8 +172,8 @@ class Window:
                                     self.mandarin_font,
                                     BLACK,
                                     "entry3")
-        self.widget_canvas.add_widget(self.entry3)
-        self.widget_canvas.add_widget(Widgets.Button(180,
+        self.content_frame.add_widget(self.entry3)
+        self.content_frame.add_widget(Widgets.Button(180,
                                                      572,
                                                      150,
                                                      55,
@@ -186,16 +184,26 @@ class Window:
                                                      "Submit",
                                                      self.submit,
                                                      "button2"))
-        self.widget_canvas.add_widget(Widgets.Spinner(40,
-                                                      580,
+        self.content_frame.add_widget(Widgets.Spinner(50,
+                                                      650,
                                                       100,
                                                       15,
                                                       90,
                                                       250,
                                                       (205, 205, 205),
-                                                      (26, 134, 219),
-                                                      "spinner1"))
-        self.widget_canvas.add_widget(Widgets.ScrollBar("scrollbar1"))
+                                                      (26, 134, 219)))
+        self.content_frame.add_widget(Widgets.Button(193,
+                                                     675,
+                                                     260,
+                                                     55,
+                                                     1,
+                                                     BLACK,
+                                                     ORANGE,
+                                                     self.font,
+                                                     "Test Transition",
+                                                     self.init_transition,
+                                                     "button3"))
+        self.content_frame.add_widget(Widgets.ScrollBar())
         # endregion
         while self.game_run:
             self.clock.tick(self.fps)
@@ -222,9 +230,21 @@ class Window:
                     self.key_events.append(event)
             self.mouse.set_pos(*pygame.mouse.get_pos())
             self.mouse.reset_z_index()
-            self.widgets.update(self.mouse, self.key_events)
+            if self.transition is None:
+                # Only allow mouse events to be passed to the widget-group if a transition is not in progress.
+                self.mouse.increment_z_index()
+            else:
+                return_code = self.transition.update()
+                if return_code == 2:
+                    self.transition = None
+            self.content_frame.update(self.mouse, self.key_events)
             self.display.fill(BLUE)
-            self.widgets.draw(self.display)
+            self.display.blit(self.content_frame.image, self.content_frame.rect)
+            if self.transition is not None:
+                if self.transition_ready:
+                    self.display.blit(self.transition.image, self.transition.rect)
+                else:
+                    self.transition_ready = True
             pygame.display.flip()
         pygame.quit()
 
@@ -233,6 +253,11 @@ class Window:
 
     def add_counter2(self) -> None:
         self.counter2 += 1
+
+    def init_transition(self) -> None:
+        if self.transition is None:
+            self.transition = Widgets.ScreenTransition(self.resolution[0], self.resolution[1], 400)
+            self.transition_ready = False
 
     def submit(self) -> None:
         print("{}\n"

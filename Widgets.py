@@ -1,3 +1,39 @@
+"""This is a GUI toolkit for SDL that I made mainly for my own use, but feel free to use it in your project if you want.
+
+|
+How to use:
+
+First, construct a 'Frame' class instance. Then, initialize each widget you want to use, and add the class object to the
+frame via the 'Frame.add_widget' method. Note that radio buttons are a bit special, as you have to first create a
+'RadioGroup' instance, then create radio buttons for the group with the 'RadioGroup.create_radio_button' method. After
+that, you can pass the 'RadioGroup' object to the 'Frame.add_widget' method like a normal widget.
+
+Every game tick, make sure to pass user events to the frame by calling the 'Frame.update' method and passing a
+'Mouse.Cursor' object and a list of 'pygame.event.Event' objects as parameters. You should initialize a 'Mouse.Cursor'
+object at the beginning of your code, and continuously call its 'mouse_enter', 'mouse_leave', 'reset_scroll',
+'push_scroll', 'set_button_state', 'set_pos', and 'reset_z_index' methods at the correct times in the game-loop. The
+list should contain all keyboard-related events that has appeared since the last time 'Frame.update' was called. This
+can easily be achieved by declaring an empty list, then looping through the event queue every frame and appending
+keyboard-related events to the end of the list, then clearing the list after passing it to the 'Frame.update' method.
+After that, you can "blit" the frame to the display surface using the frame's 'image' and 'rect'
+attributes.
+
+As widgets solely rely on the data you pass to it to handle user events, make sure to correctly update the data you're
+passing to the 'Frame.update' method to ensure widgets respond to hovers, clicks, scroll events, key-presses, and window
+events correctly.
+
+'UI_Demo.py' is a UI that demonstrates how to use this module. It was created for testing purposes during
+development, but I'm sure it'll also help you on getting started.
+
+|
+Notes:
+
+1. This module also needs 'Global.py', 'Mouse.py', and 'Time.py' to work. Include them in your project if you want to
+   use this module.
+2. Since this module needs access to window events, Pygame version >= 2.0.1 is required.
+3. Apart from the 'Pygame' module, this file also requires the 'Pyperclip' module to be installed in order to access the
+   clipboard. Make sure to install it with 'pip install pyperclip' if you don't already have it.
+"""
 from Global import *
 import math
 import Mouse
@@ -10,6 +46,7 @@ os.environ["SDL_IME_SHOW_UI"] = "1"  # Enable showing the IME candidate list.
 
 class BaseWidget(pygame.sprite.Sprite):
     def __init__(self, widget_name: str = "!base_widget"):
+        """Base class for all widgets."""
         super().__init__()
         self.widget_name = widget_name
         self.parent = None
@@ -34,6 +71,8 @@ class AnimatedSurface(BaseWidget):
                  surface: pygame.Surface,
                  callback: Optional[Callable[[], None]],
                  widget_name: str = "!animated_surf"):
+        """Animates a static surface image to dilate on mouse-hover and shrink on mouse-leave. When clicked, the surface
+        flashes and calls the callback function given at initialization."""
         super().__init__(widget_name)
         # region Sprite Data
         self.real_x = x  # The x and y position without resize offset.
@@ -172,13 +211,15 @@ class Button(AnimatedSurface):
                  text: str,
                  callback: Optional[Callable[[], None]],
                  widget_name: str = "!button"):
+        """Similar to AnimatedSurface, except it accepts a font object and a string in order to create the surface
+        dynamically. The shape of the button is a two-cornered rounded rect."""
         button_surf = pygame.Surface((width, height), flags=pygame.SRCALPHA)
         button_surf.fill((0, 0, 0, 0))
         draw_button(button_surf, 0, 0, width, height, border, fg, bg, font, text)
         super().__init__(x, y, button_surf, callback, widget_name)
 
 
-class WordWrappedText(BaseWidget):
+class Label(BaseWidget):
     def __init__(self,
                  x: Union[int, float],
                  y: Union[int, float],
@@ -187,6 +228,8 @@ class WordWrappedText(BaseWidget):
                  width: int,
                  font: pygame.font.Font,
                  widget_name: str = "!label"):
+        """Accepts text to be displayed, width in pixels, and a font object. The text will be word-wrapped to guarantee
+        that it fits in the requested width."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -213,6 +256,8 @@ class Checkbox(BaseWidget):
                  padding: int,
                  border: int,
                  widget_name: str = "!checkbox"):
+        """A simple checkbox with rounded corners both on the button and the surrounding rect. The caption text will be
+        word-wrapped to fit the requested width."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -307,13 +352,14 @@ class Box(pygame.sprite.Sprite):
 
 class RadioGroup:
     def __init__(self, default: int = 0):
+        """A class designated for managing a group of radio buttons."""
         super().__init__()
         self.default = default
         self.counter_id = 0
         self.selected_id = default
         self.children = []
 
-    def add_radio_button(self, *args) -> None:
+    def create_radio_button(self, *args) -> None:
         radio_button = RadioButton(self.counter_id, self.update_selection, self.counter_id == self.default, *args)
         self.children.append(radio_button)
         self.counter_id += 1
@@ -349,6 +395,9 @@ class RadioButton(Checkbox):
                  padding: int,
                  border: int,
                  widget_name: str = "!radio_button"):
+        """A simple radio button widget. When a radio button is selected, all other radio-buttons in the same group will
+         be unselected. The radio button which is selected by default is determined by the 'default' parameter passed to
+         the RadioGroup class."""
         super().__init__(x, y, label_text, text_color, bg, width, font, padding, border, widget_name)
         self.id = radio_id
         self.button_length = 35
@@ -434,6 +483,10 @@ class Entry(BaseWidget):
                  font: pygame.font.Font,
                  fg: Tuple[int, int, int],
                  widget_name: str = "!entry"):
+        """A simple text-box widget. Behaves virtually identical to the text-box widget of win32gui. Its copy-pasting
+        functionality relies on the 'Pyperclip' module, so make sure to have it installed. Note that the environment
+        variable 'SDL_IME_SHOW_UI' must be set to 1 for this widget to function correctly. This is done automatically by
+        line 8 of this module."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -1278,8 +1331,10 @@ class Slider(BaseWidget):
                  font: pygame.font.Font,
                  min_value: int,
                  max_value: int,
-                 gauge_height: int = 0,
+                 mark_height: int = 0,
                  widget_name: str = "!slider"):
+        """A simple slider widget. When the parameter 'mark_height' is greater than 0, lines of that height will be
+        drawn at every unit."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -1292,7 +1347,7 @@ class Slider(BaseWidget):
         self.active_line_color = active_line_color
         self.thumb_width = thumb_width
         self.text_padding = 10  # The padding between the number display and the slider.
-        self.gauge_height = gauge_height
+        self.gauge_height = mark_height
         self.max_text_width = self.resize_text(str(max_value))[0]
         self.width = self.thumb_width + self.line_length + self.text_padding + self.max_text_width
         self.height = max(text_height, thumb_height)
@@ -1453,12 +1508,15 @@ class SliderButton(pygame.sprite.Sprite):
 
 
 class ScrollBar(BaseWidget):
-    def __init__(self, widget_name: str = "!scrollbar"):
+    def __init__(self, width: int = 20, widget_name: str = "!scrollbar"):
+        """A simple, functional scrollbar. It can be interacted with by dragging the thumb, clicking or holding down the
+        up and down buttons, or using the scroll-wheel. The width of the scrollbar can be customized by passing a value
+        to the 'width' parameter, but 20 pixels (the default) is the recommended width."""
         super().__init__(widget_name)
         # The values of most attributes cannot be calculated until the scrollbar is added to a parent.
         self.x = None
         self.y = 0
-        self.width = 20
+        self.width = width
         self.height = None
         self.scroll_factor = None
         self.button_scroll_amount = 10
@@ -1480,6 +1538,8 @@ class ScrollBar(BaseWidget):
         thumb_length = track_length / cs_ratio
         if thumb_length > track_length:
             thumb_length = track_length
+        elif thumb_length < 30:
+            thumb_length = 30
         self.thumb = ScrollThumb(self.width, self.height, thumb_length)
         scrollbar_distance = track_length - thumb_length
         content_distance = content_height - self.height
@@ -1670,6 +1730,8 @@ class Spinner(BaseWidget):
                  unlit_color: Tuple[int, int, int],
                  lit_color: Tuple[int, int, int],
                  widget_name: str = "!spinner"):
+        """A simple, highly customizable spinner widget. Unfortunately, the arc that makes up the spinner will have
+        'holes' in it at higher thicknesses due to limitations in the 'pygame.draw.arc' function."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -1678,7 +1740,6 @@ class Spinner(BaseWidget):
         self.thickness = thickness
         self.speed = speed
         self.angle = 0
-        self.dr_factor = math.pi / 180
         self.delta_timer = Time.Time()
         self.unlit_color = unlit_color
         self.lit_color = lit_color
@@ -1695,15 +1756,15 @@ class Spinner(BaseWidget):
                         self.unlit_color,
                         (0, 0, self.length, self.length),
                         0,
-                        360 * self.dr_factor,
+                        math.radians(360),
                         self.thickness)
-        start_angle = (360 - ((self.angle + self.lit_length) % 360)) * self.dr_factor
-        end_angle = (360 - self.angle) * self.dr_factor
+        start_angle = 360 - ((self.angle + self.lit_length) % 360)
+        end_angle = 360 - self.angle
         pygame.draw.arc(self.image,
                         self.lit_color,
                         (0, 0, self.length, self.length),
-                        start_angle,
-                        end_angle,
+                        math.radians(start_angle),
+                        math.radians(end_angle),
                         self.thickness)
 
     def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
@@ -1714,7 +1775,48 @@ class Spinner(BaseWidget):
         self.render_surface()
 
 
-class WidgetCanvas(BaseWidget):
+class BaseTransparencyOverlay:
+    def __init__(self, width: int, height: int):
+        self.x = 0
+        self.y = 0
+        self.width = width
+        self.height = height
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.fill(BLACK)
+        self.image.set_alpha(255)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+
+class ScreenTransition(BaseTransparencyOverlay):
+    def __init__(self, width: int, height: int, speed: int):
+        """A simple transition effect. The screen will steadily darken until fully black, then the same animation is
+        played in reverse. Useful for making screen-switches less abrupt."""
+        super().__init__(width, height)
+        self.alpha = 0
+        self.speed = speed
+        self.max_alpha = 255
+        self.timer = Time.Time()
+        self.timer.reset_timer()
+
+    def update(self) -> int:
+        """Returns 1 on the frame the animation enters the second stage, and returns 2 when the animation is done, else
+        returns 0."""
+        return_code = 0
+        delta_time = self.timer.get_time()
+        self.timer.reset_timer()
+        self.alpha += self.speed * delta_time
+        if self.alpha >= self.max_alpha:
+            self.speed = -self.speed
+            self.alpha = self.max_alpha - self.alpha % self.max_alpha
+            return_code = 1
+        elif self.alpha < 0:
+            self.alpha = 0
+            return_code = 2
+        self.image.set_alpha(round(self.alpha))
+        return return_code
+
+
+class Frame(BaseWidget):
     def __init__(self,
                  x: Union[int, float],
                  y: Union[int, float],
@@ -1722,7 +1824,11 @@ class WidgetCanvas(BaseWidget):
                  height: int,
                  padding_bottom: int,
                  z_index: int = 1,
-                 widget_name: str = "!widget_canvas"):
+                 widget_name: str = "!frame"):
+        """Container class for all widgets. Every widget should be added to a frame after initialization. User input can
+        then be passed to all widgets in the frame by calling the frame's 'update' method and passing a 'Mouse.Cursor'
+        object and a list of 'pygame.event.Event' objects as parameters. After updating, the frame can be directly
+        rendered to the screen using its 'image' and 'rect' attributes."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -1751,9 +1857,9 @@ class WidgetCanvas(BaseWidget):
                 self.add_widget(w)
         else:
             if widget_obj.get_widget_name() in self.child_widgets:
-                raise WidgetAppendError(widget_obj, 1)
+                raise FrameError(widget_obj, 1)
             elif widget_obj.has_parent():
-                raise WidgetAppendError(widget_obj, 2)
+                raise FrameError(widget_obj, 2)
             else:
                 widget_obj.set_parent(self)
                 self.child_widgets[widget_obj.get_widget_name()] = widget_obj
@@ -1797,6 +1903,7 @@ class WidgetCanvas(BaseWidget):
             pointer_events = False
             scrolled_rel_mouse = Mouse.Cursor()
             scrolled_rel_mouse.mouse_leave()  # Dummy mouse object to prevent collision.
+            keyboard_events = []
         collide = self.rect.collidepoint(mouse_obj.get_pos())
         return_values = []
         for widget in self.child_widgets.values():
@@ -1857,46 +1964,34 @@ class WidgetCanvas(BaseWidget):
             if index < len(self.render_z_order) - 1:
                 self.render_z_order.append(self.render_z_order.pop(index))
         else:
-            raise WidgetNameError(widget_name)
+            raise WidgetIDError(widget_name)
 
 
-class WidgetGroup(pygame.sprite.Group):
+class WindowedFrame(pygame.sprite.Sprite):
     def __init__(self):
+        """For drawing window controls around a frame. The surface of the frame is used as the window's content."""
         super().__init__()
-        self.child_canvases = {}
-
-    def add_widget_canvas(self, canvas_obj: WidgetCanvas) -> None:
-        if canvas_obj.get_widget_name() in self.child_canvases:
-            raise CanvasAppendError(canvas_obj, 1)
-        elif canvas_obj.has_parent():
-            raise CanvasAppendError(canvas_obj, 2)
-        else:
-            canvas_obj.set_parent(self)
-            self.child_canvases[canvas_obj.get_widget_name()] = canvas_obj
-            self.add(canvas_obj)
 
 
-class WidgetNameError(Exception):
-    def __init__(self, widget_name: str):
-        """
-        Raised if a non-existent widget name is passed to a WidgetCanvas method.
-        """
-        super().__init__("The widget '{}' doesn't exist in this WidgetCanvas".format(widget_name))
-        self.widget_name = widget_name
+class WidgetIDError(Exception):
+    def __init__(self, widget_id: str):
+        """This exception is raised if a non-existent widget identifier is passed to a frame method."""
+        super().__init__("A widget with the ID '{}' doesn't exist in this frame".format(widget_id))
+        self.widget_id = widget_id
 
-    def get_failed_name(self) -> str:
-        return self.widget_name
+    def get_failed_id(self) -> str:
+        return self.widget_id
 
 
-class WidgetAppendError(Exception):
+class FrameError(Exception):
     def __init__(self, widget: BaseWidget, error_type: int):
-        """
-        For handling errors when adding a widget to a WidgetCanvas.
-        """
+        """A simple exception class for handling frame-related errors."""
         if error_type == 1:
-            message = "The WidgetCanvas already contains a widget with the ID '{}'".format(widget.get_widget_name())
+            message = "The frame already contains a widget with the ID '{}'"\
+                .format(widget.get_widget_name())
         elif error_type == 2:
-            message = "The widget '{}' has already been added to a parent WidgetCanvas".format(widget.get_widget_name())
+            message = "The widget with the ID '{}' has already been added to a parent frame"\
+                .format(widget.get_widget_name())
         else:
             message = "Unknown error"
         super().__init__(message)
@@ -1904,23 +1999,3 @@ class WidgetAppendError(Exception):
 
     def get_failed_widget(self) -> BaseWidget:
         return self.failed_widget
-
-
-class CanvasAppendError(Exception):
-    def __init__(self, canvas: WidgetCanvas, error_type: int):
-        """
-        For handling errors when adding a WidgetCanvas to a WidgetGroup.
-        """
-        if error_type == 1:
-            message = "The WidgetGroup already contains a WidgetCanvas with the ID '{}'" \
-                .format(canvas.get_widget_name())
-        elif error_type == 2:
-            message = "The WidgetCanvas '{}' has already been added to a parent WidgetGroup" \
-                .format(canvas.get_widget_name())
-        else:
-            message = "Unknown error"
-        super().__init__(message)
-        self.failed_canvas = canvas
-
-    def get_failed_canvas(self) -> WidgetCanvas:
-        return self.failed_canvas

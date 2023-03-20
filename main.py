@@ -37,7 +37,7 @@ class MainProc:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        self.ui_widgets = Widgets.WidgetGroup()
+        self.home_frame = Widgets.Frame(0, 0, 0, 0, 0)
         # endregion
         # region Key Sequences
         self.key_table: Dict[str, int] = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
@@ -124,7 +124,7 @@ class MainProc:
             self.mouse_obj.reset_z_index()  # Set mouse event processing z-order back to top.
             self.notifiers.send_mouse_pos(self.mouse_obj)
             if self.state_data.game_state == "menu":
-                self.ui_widgets.update(self.mouse_obj, [])
+                self.home_frame.update(self.mouse_obj, [])
                 self.tiles_group.move()
                 self.tiles_group.reset_pos()
             elif self.state_data.game_state in ("waiting", "started", "dying"):
@@ -140,7 +140,7 @@ class MainProc:
             self.display_surface.blit(self.background, (0, 0))
             self.tiles_group.draw(self.display_surface)
             if self.state_data.game_state == "menu":
-                self.ui_widgets.draw(self.display_surface)
+                self.display_surface.blit(self.home_frame.image, self.home_frame.rect)
             elif self.state_data.game_state in ("started", "dying"):
                 self.pipe_group.draw(self.display_surface)
                 if self.debug:

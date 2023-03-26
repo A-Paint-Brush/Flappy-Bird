@@ -1,25 +1,21 @@
-# region Type annotation purposes
-import dataclasses
-import Ground
-import Mouse
-import Pipe
-# endregion
-# region Actually needed
 from os.path import normpath
 from Global import *
-import Wiggle
+import Ground
+import Mouse
 import Physics
-import math
-import pygame
+import Pipe
 import Time
-# endregion
+import Wiggle
+import dataclasses
+import pygame
+import math
 
 
 class Bird(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__()
         # region Costume Data
-        self.costumes = tuple(pygame.image.load(normpath("./Images/{}".format(file))).convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
+        self.costumes = tuple(pygame.image.load(normpath("./Images/Sprites/{}".format(file))).convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
         self.image = self.costumes[0]
         self.costume_index = 0
         self.costume_dir = 1
@@ -214,6 +210,7 @@ class BirdManager(pygame.sprite.Group):
         self.resolution = resolution
         self.spawned = False
         self.bird_object = None
+        self.clicked = False
         self.z_index = 2
 
     def click(self,
@@ -223,25 +220,30 @@ class BirdManager(pygame.sprite.Group):
               mouse_object: Mouse.Cursor,
               mouse_initiated: bool) -> None:
         if mouse_initiated:
-            if (not self.z_index == mouse_object.get_z_index()) or (not mouse_object.get_button_state(1)):
+            if not self.z_index == mouse_object.get_z_index():
                 return None
-        if state_data.game_state == "menu":
-            self.spawned = True
-            self.bird_object = Bird(self.resolution, ground_group.get_size())
-            self.add(self.bird_object)
-            state_data.game_state = "waiting"
-        elif state_data.game_state == "waiting":
-            state_data.game_state = "started"
-            pipe_group.generate()
-            self.bird_object.init_gravity_physics()
-            self.bird_object.jump()
-        elif state_data.game_state == "started":
-            self.bird_object.jump()
-        elif state_data.game_state == "dying":
-            pass
+            elif not mouse_object.get_button_state(1):
+                self.clicked = False
+                return None
+        if not mouse_initiated or (mouse_initiated and not self.clicked):
+            if mouse_initiated:
+                self.clicked = True
+            if state_data.game_state == "menu":
+                self.spawned = True
+                self.bird_object = Bird(self.resolution, ground_group.get_size())
+                self.add(self.bird_object)
+                state_data.game_state = "waiting"
+            elif state_data.game_state == "waiting":
+                state_data.game_state = "started"
+                pipe_group.generate()
+                self.bird_object.init_gravity_physics()
+                self.bird_object.jump()
+            elif state_data.game_state == "started":
+                self.bird_object.jump()
+            elif state_data.game_state == "dying":
+                pass
         if mouse_initiated:
             mouse_object.increment_z_index()  # It's not possible to fail to interact with the bird :)
-        # Note: Interaction with the bird is ignored when game_state == "dying".
 
     def die(self, state_data: dataclasses.dataclass) -> None:
         state_data.game_state = "dying"
@@ -268,7 +270,7 @@ class BirdManager(pygame.sprite.Group):
         elif state_data.game_state == "dying":
             speed, movement = self.bird_object.tick()
             self.bird_object.move_collide(movement, None, collide=False)
-            self.bird_object.calc_angle(speed, None, collide=False)  # Collision detection is no longer needed after death.
+            self.bird_object.calc_angle(speed, None, collide=False)  # Collision detection is not needed after death.
             pipe_group.update_flash_pipe()
 
     def update_all_related_objects(self,

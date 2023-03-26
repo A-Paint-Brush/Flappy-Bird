@@ -1,4 +1,5 @@
-"""This is a GUI toolkit for SDL that I made mainly for my own use, but feel free to use it in your project if you want.
+"""
+This is a GUI toolkit for SDL that I made mainly for my own use, but feel free to use it in your project if you want.
 
 |
 How to use:
@@ -229,7 +230,7 @@ class Label(BaseWidget):
                  font: pygame.font.Font,
                  widget_name: str = "!label"):
         """Accepts text to be displayed, width in pixels, and a font object. The text will be word-wrapped to guarantee
-        that it fits in the requested width."""
+        that it fits the requested width."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -359,8 +360,19 @@ class RadioGroup:
         self.selected_id = default
         self.children = []
 
-    def create_radio_button(self, *args) -> None:
-        radio_button = RadioButton(self.counter_id, self.update_selection, self.counter_id == self.default, *args)
+    def create_radio_button(self,
+                            x: Union[int, float],
+                            y: Union[int, float],
+                            label_text: str,
+                            text_color: Tuple[int, int, int],
+                            bg: Tuple[int, int, int],
+                            width: int,
+                            font: pygame.font.Font,
+                            padding: int,
+                            border: int,
+                            widget_name: str = "!radio_button") -> None:
+        radio_button = RadioButton(self.counter_id, self.update_selection, self.counter_id == self.default,
+                                   x, y, label_text, text_color, bg, width, font, padding, border, widget_name)
         self.children.append(radio_button)
         self.counter_id += 1
 
@@ -1444,13 +1456,12 @@ class SliderButton(pygame.sprite.Sprite):
         self.mouse_offset = -1
         self.image = pygame.Surface((self.width, self.height))
         self.image.set_colorkey(TRANSPARENT)
-        self.image.fill(TRANSPARENT)
         self.render_surface()
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.mask = pygame.mask.from_surface(self.image)
 
     def render_surface(self) -> None:
-        # Fill can be skipped as the locations of visible pixels are never changed.
+        self.image.fill(TRANSPARENT)
         draw_vtp_rounded_rect(self.image, (0, 0), (self.width, self.height), self.current_color)
 
     def update(self, mouse_obj: Mouse.Cursor) -> None:
@@ -1775,47 +1786,6 @@ class Spinner(BaseWidget):
         self.render_surface()
 
 
-class BaseTransparencyOverlay:
-    def __init__(self, width: int, height: int):
-        self.x = 0
-        self.y = 0
-        self.width = width
-        self.height = height
-        self.image = pygame.Surface((self.width, self.height))
-        self.image.fill(BLACK)
-        self.image.set_alpha(255)
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
-
-
-class ScreenTransition(BaseTransparencyOverlay):
-    def __init__(self, width: int, height: int, speed: int):
-        """A simple transition effect. The screen will steadily darken until fully black, then the same animation is
-        played in reverse. Useful for making screen-switches less abrupt."""
-        super().__init__(width, height)
-        self.alpha = 0
-        self.speed = speed
-        self.max_alpha = 255
-        self.timer = Time.Time()
-        self.timer.reset_timer()
-
-    def update(self) -> int:
-        """Returns 1 on the frame the animation enters the second stage, and returns 2 when the animation is done, else
-        returns 0."""
-        return_code = 0
-        delta_time = self.timer.get_time()
-        self.timer.reset_timer()
-        self.alpha += self.speed * delta_time
-        if self.alpha >= self.max_alpha:
-            self.speed = -self.speed
-            self.alpha = self.max_alpha - self.alpha % self.max_alpha
-            return_code = 1
-        elif self.alpha < 0:
-            self.alpha = 0
-            return_code = 2
-        self.image.set_alpha(round(self.alpha))
-        return return_code
-
-
 class Frame(BaseWidget):
     def __init__(self,
                  x: Union[int, float],
@@ -1966,11 +1936,211 @@ class Frame(BaseWidget):
         else:
             raise WidgetIDError(widget_name)
 
+    def update_position(self, new_x: int, new_y: int) -> None:
+        self.x = new_x
+        self.y = new_y
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
-class WindowedFrame(pygame.sprite.Sprite):
-    def __init__(self):
-        """For drawing window controls around a frame. The surface of the frame is used as the window's content."""
+
+class Window(pygame.sprite.Sprite):
+    def __init__(self,
+                 x: Union[int, float],
+                 start_y: Union[int, float],
+                 final_y: Union[int, float],
+                 bg: Tuple[int, int, int],
+                 overlay_max_alpha: int,
+                 active_color: Tuple[int, int, int],
+                 dormant_color: Tuple[int, int, int],
+                 border_radius: int,
+                 button_length: int,
+                 button_padding: int,
+                 button_thickness: int,
+                 speed_factor: float,
+                 content_frame: Frame,
+                 destination_surf: pygame.Surface,
+                 z_index: int):
+        """A popup-window widget that takes a frame instance to be used as its content. The window has a nice entry and
+        exit animation, and contains a close button in its title bar."""
         super().__init__()
+        self.x = x
+        self.y = start_y
+        self.start_y = start_y
+        self.final_y = final_y
+        self.content_frame = content_frame
+        self.content_pos = (border_radius, border_radius + button_length + button_padding)
+        self.width = border_radius * 2 + self.content_frame.width
+        self.height = border_radius * 2 + button_length + button_padding + self.content_frame.height
+        self.distance = self.start_y - self.final_y
+        self.direction = "u"  # Possible values are "(u)p", "(d)own", "(i)dle", and "(r)eturn".
+        self.bg = bg
+        self.destination_surf = destination_surf
+        self.z_index = z_index
+        self.close_button = WindowButton(self.width - border_radius - button_length,
+                                         border_radius,
+                                         button_length,
+                                         button_thickness,
+                                         active_color,
+                                         dormant_color)
+        self.overlay = WindowOverlay(self.destination_surf.get_width(),
+                                     self.destination_surf.get_height(),
+                                     overlay_max_alpha,
+                                     self.distance)
+        self.border_radius = border_radius
+        self.speed_factor = speed_factor
+        self.timer = Time.Time()
+        self.timer.reset_timer()
+        self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def render_surface(self) -> None:
+        self.image.fill((0, 0, 0, 0))
+        draw_rounded_rect(self.image, (0, 0), (self.width, self.height), self.border_radius, self.bg)
+        self.image.blit(self.content_frame.image, self.content_pos)
+        self.image.blit(self.close_button.image, self.close_button.rect)
+
+    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: list[pygame.event.Event]) -> bool:
+        updated_mouse = mouse_obj.copy()
+        rel_mouse = mouse_obj.copy()
+        rel_mouse.set_pos(mouse_obj.get_pos()[0] - self.x, mouse_obj.get_pos()[1] - self.y)
+        if self.z_index != mouse_obj.get_z_index():
+            updated_mouse.mouse_leave()
+            rel_mouse.mouse_leave()
+            keyboard_events = []
+        if self.direction in ("u", "d"):
+            delta_time = self.timer.get_time()
+            self.timer.reset_timer()
+            self.distance *= pow(self.speed_factor, delta_time)
+            if round(self.distance) > 0:
+                self.y = self.final_y + self.distance if self.direction == "u" else self.start_y - self.distance
+            else:
+                self.y = self.final_y if self.direction == "u" else self.start_y
+                self.direction = "i" if self.direction == "u" else "r"
+            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+            self.content_frame.update_position(self.x + self.content_pos[0], self.y + self.content_pos[1])
+            dummy_mouse = mouse_obj.copy()
+            dummy_mouse.mouse_leave()
+            self.close_button.update(dummy_mouse)
+            self.overlay.update(self.start_y - self.y)
+        elif self.direction == "i":
+            if self.close_button.update(rel_mouse):
+                self.close_window()
+        self.content_frame.update(updated_mouse, keyboard_events)
+        self.render_surface()
+        return self.direction == "r"
+
+    def draw(self) -> None:
+        self.destination_surf.blit(self.overlay.image, self.overlay.rect)
+        self.destination_surf.blit(self.image, self.rect)
+
+    def close_window(self) -> None:
+        if self.direction == "i":
+            self.distance = self.start_y - self.final_y
+            self.direction = "d"
+            self.timer.reset_timer()
+
+
+class WindowButton(pygame.sprite.Sprite):
+    def __init__(self,
+                 x: Union[int, float],
+                 y: Union[int, float],
+                 length: int,
+                 thickness: int,
+                 active_color: Tuple[int, int, int],
+                 dormant_color: Tuple[int, int, int]):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.width = length
+        self.height = length
+        self.thickness = thickness
+        self.active_color = active_color
+        self.dormant_color = dormant_color
+        self.current_color = self.dormant_color
+        self.lock = True
+        self.mouse_down = False
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.set_colorkey(TRANSPARENT)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def render_surface(self) -> None:
+        self.image.fill(TRANSPARENT)
+        draw_cross(self.image, (0, 0), (self.width, self.height), self.thickness, self.current_color)
+
+    def update(self, mouse_obj: Mouse.Cursor) -> bool:
+        collision = pygame.sprite.collide_rect(self, mouse_obj)
+        clicked = False
+        if collision:
+            if mouse_obj.get_button_state(1) and not self.mouse_down and not self.lock:
+                self.mouse_down = True
+            elif not mouse_obj.get_button_state(1):
+                if self.mouse_down:
+                    self.mouse_down = False
+                    clicked = True
+                self.lock = False
+            self.current_color = self.active_color
+        else:
+            if not mouse_obj.get_button_state(1) and self.mouse_down:
+                self.mouse_down = False
+            self.lock = True
+            self.current_color = self.dormant_color
+        self.render_surface()
+        return clicked
+
+
+class BaseOverlay:
+    def __init__(self, width: int, height: int):
+        """Base class for all effects that places a partially transparent overlay over the screen."""
+        self.x = 0
+        self.y = 0
+        self.width = width
+        self.height = height
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.fill(BLACK)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+
+class SceneTransition(BaseOverlay):
+    def __init__(self, width: int, height: int, speed: int):
+        """A simple transition effect. The screen will steadily darken until fully black, then the same animation is
+        played in reverse until fully transparent. This transition is useful for making scene-changes less abrupt."""
+        super().__init__(width, height)
+        self.alpha = 0
+        self.speed = speed
+        self.max_alpha = 255
+        self.timer = Time.Time()
+        self.timer.reset_timer()
+
+    def update(self) -> int:
+        """Returns 1 on the frame the animation enters the second stage, and returns 2 when the animation is done, else
+        returns 0."""
+        return_code = 0
+        delta_time = self.timer.get_time()
+        self.timer.reset_timer()
+        self.alpha += self.speed * delta_time
+        if self.alpha >= self.max_alpha:
+            self.speed = -self.speed
+            self.alpha = self.max_alpha - self.alpha % self.max_alpha
+            return_code = 1
+        elif self.alpha < 0:
+            self.alpha = 0
+            return_code = 2
+        self.image.set_alpha(round(self.alpha))
+        return return_code
+
+
+class WindowOverlay(BaseOverlay):
+    def __init__(self, width: int, height: int, max_alpha: int, total_distance: Union[int, float]):
+        """Darkens the screen by an amount proportionate to the distance the window has moved from the edge of the
+        screen as it plays its entry animation. The same animation is played in reverse when the window plays its exit
+        animation. This effect is useful for directing the user's attention to the active window."""
+        super().__init__(width, height)
+        self.alpha = 0
+        self.max_alpha = max_alpha
+        self.total_distance = total_distance
+
+    def update(self, moved_distance: Union[int, float]) -> None:
+        self.alpha = self.max_alpha * (moved_distance / self.total_distance)
+        self.image.set_alpha(round(self.alpha))
 
 
 class WidgetIDError(Exception):

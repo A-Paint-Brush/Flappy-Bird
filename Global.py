@@ -1,18 +1,19 @@
 from typing import *
 import pygame.transform
-BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
 ORANGE = (255, 160, 20)
+YELLOW = (222, 216, 149)
+BLUE = (26, 134, 219)
+CYAN = (112, 197, 206)
 GREY1 = (240, 240, 240)
 GREY2 = (218, 218, 218)
 GREY3 = (209, 209, 209)
 GREY4 = (205, 205, 205)
 GREY5 = (166, 166, 166)
 GREY6 = (96, 96, 96)
-WHITE = (255, 255, 255)
-CYAN = (112, 197, 206)
-YELLOW = (222, 216, 149)
-BLUE = (26, 134, 219)
-TRANSPARENT = (1, 1, 1)  # The color used as the transparent color in 'Surface.set_colorkey()' throughout the project.
+BLACK = (0, 0, 0)
+TRANSPARENT = (1, 1, 1)  # The color used as the transparent color-key throughout the project.
 
 
 def collide_function(sprite1: pygame.sprite.Sprite, sprite2: pygame.sprite.Sprite) -> bool:
@@ -87,7 +88,8 @@ def draw_button(surface: pygame.Surface,
                  [x + width - corner_radius - border, y + corner_radius])
     for position in positions:
         pygame.draw.circle(surface, bg, position, corner_radius - border, 0)
-    pygame.draw.rect(surface, bg, [x + corner_radius + border, y + border, width - corner_radius * 2 - border * 2, height - border * 2], 0)
+    pygame.draw.rect(surface, bg, [x + corner_radius + border, y + border, width - corner_radius * 2 - border * 2,
+                                   height - border * 2], 0)
     surface.blit(text_surf, (surface.get_size()[0] / 2 - text_width / 2, surface.get_size()[1] / 2 - text_height / 2))
 
 
@@ -114,55 +116,39 @@ def draw_triangle(surface: pygame.Surface,
     pygame.draw.polygon(surface, color, vertices)
 
 
-def word_wrap_text(string: str, width: int, font: pygame.font.Font) -> List[str]:
-    # region Wrap words
-    words = string.split(" ")
-    shortened_words = []
-    for w in words:
-        if font.size(w)[0] > width:
-            word_chunks = []
-            current_word = list(w)
-            while current_word:
-                current_chunk = []
-                overflow = True
-                while font.size("".join(current_chunk + ["-"]))[0] <= width:
-                    if not current_word:
-                        overflow = False
-                        break
-                    current_chunk.append(current_word.pop(0))
-                if overflow:
-                    current_word.insert(0, current_chunk.pop())
-                word_chunks.append("".join(current_chunk + ["-" if overflow else ""]))
-            for chunk in word_chunks:
-                shortened_words.append(chunk)
+def draw_cross(surface: pygame.Surface,
+               pos: Tuple[int, int],
+               size: Tuple[int, int],
+               width: int,
+               color: Tuple[int, int, int]) -> None:
+    lines = ((pos, (pos[0] + size[0] - 1, pos[1] + size[1] - 1)),
+             ((pos[0] + size[0] - 1, pos[1]), (pos[0], pos[1] + size[1] - 1)))
+    for line in lines:
+        pygame.draw.line(surface, color, line[0], line[1], width=width)
+
+
+def word_wrap_text(string: str, width: int, font: pygame.font.Font, br: str = "-") -> list[str]:
+    lines, break_locations = [[]], []
+    for index, char in enumerate(string):
+        if char == " ":
+            break_locations.append(len(lines[-1]))
+            lines[-1].append(char)
+            continue
+        elif char == "\n":
+            break_locations.clear()
+            lines.append([])
+            continue
+        if font.size("".join(lines[-1] + [char, br]))[0] <= width:
+            lines[-1].append(char)
         else:
-            shortened_words.append(w)
-    words = shortened_words
-    # endregion
-    # region Wrap lines
-    wrapped_lines = []
-    current_line = []
-    while words:
-        overflow = True
-        while font.size(" ".join(current_line))[0] <= width:
-            if not words:
-                overflow = False
-                break
-            next_word = words.pop(0)
-            if next_word.count("\n") > 0:
-                split = next_word.split("\n")
-                current_line.append(split[0])
-                if font.size(" ".join(current_line))[0] > width:
-                    overflow = True
-                else:
-                    overflow = False
-                words.insert(0, "\n".join(split[1:]))
-                break
+            if break_locations:
+                last_word = lines[-1][break_locations[-1] + 1:]
+                lines[-1] = lines[-1][:break_locations[-1]]
+                break_locations.clear()
+                lines.append(last_word)
+                lines[-1].append(char)
             else:
-                current_line.append(next_word)
-        if overflow:
-            words.insert(0, current_line.pop())
-        wrapped_lines.append(" ".join(current_line))
-        current_line.clear()
-    # endregion
-    return wrapped_lines
+                if lines[-1][-1].isascii():  # Chinese characters do not need a dash on line-breaking.
+                    lines[-1].append(br)
+                lines.append([char])
+    return ["".join(line) for line in lines]

@@ -7,9 +7,9 @@ import pygame
 
 
 class ToastNotifier(pygame.sprite.Sprite):
-    def __init__(self, resolution: Tuple[int, int], y_pos: int, message_title: str, message_text: str, id: int):
+    def __init__(self, resolution: Tuple[int, int], y_pos: int, message_title: str, message_text: str, toast_id: int):
         super().__init__()
-        self.id = id
+        self.id = toast_id
         self.title_font = pygame.font.Font(normpath("Fonts/Arial/bold.ttf"), 20)
         self.body_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 18)
         self.icon_img = pygame.Surface((50, 50))
@@ -20,11 +20,15 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.y = y_pos
         self.width = 320
         self.corner_radius = 15
-        self.close_btn_costumes = (pygame.Surface((15, 15)),
-                                   pygame.Surface((15, 15)),
-                                   None)  # (Not hovered, hovered, hidden)
-        self.close_btn_costumes[0].fill(BLACK)
-        self.close_btn_costumes[1].fill((255, 0, 0))
+        # Close button costumes: (Not hovered, hovered, hidden)
+        self.close_btn_thickness = 4
+        self.close_btn_size = (15, 15)
+        self.close_btn_costumes = (pygame.Surface(self.close_btn_size), pygame.Surface(self.close_btn_size), None)
+        self.close_btn_colors = (GREY6, RED)
+        for index, surf in enumerate(self.close_btn_costumes[:-1]):
+            surf.set_colorkey(TRANSPARENT)
+            surf.fill(TRANSPARENT)
+            draw_cross(surf, (0, 0), self.close_btn_size, self.close_btn_thickness, self.close_btn_colors[index])
         self.close_btn_img = self.close_btn_costumes[0]
         self.close_btn_x = self.width - self.corner_radius - self.close_btn_img.get_size()[0]
         self.close_btn_y = self.corner_radius
@@ -81,9 +85,7 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.remaining_distance *= pow(self.damping, delta_time)
 
     def update(self) -> bool:
-        """
-        Only returns true when this toast notification has completed its exiting animation.
-        """
+        """Only returns true when this toast notification has completed its exiting animation."""
         if self.direction == "left":
             time = self.delta_time.get_time()
             self.delta_time.reset_timer()
@@ -195,14 +197,18 @@ class ToastGroup(pygame.sprite.Group):
                 self.toasts[i].change_y(height)
 
     def send_mouse_pos(self, mouse_object: Mouse.Cursor) -> None:
-        if not self.z_index == mouse_object.get_z_index():
-            return None  # Exit if the mouse interaction has already been intercepted by a widget with a higher z-index.
-        colliding_toast = pygame.sprite.spritecollideany(mouse_object, self, collided=collide_function)
+        updated_mouse = mouse_object.copy()
+        dummy_mouse = False
+        if self.z_index != mouse_object.get_z_index():
+            updated_mouse.mouse_leave()
+            dummy_mouse = True
+        colliding_toast = pygame.sprite.spritecollideany(updated_mouse, self, collided=collide_function)
         if colliding_toast is None:
             # Only pass mouse event to the widget below if the mouse cursor failed to touch a toast notifier.
-            mouse_object.increment_z_index()
+            if not dummy_mouse:
+                mouse_object.increment_z_index()
         else:
-            colliding_toast.hover_event(mouse_object)
+            colliding_toast.hover_event(updated_mouse)
         if self.last_interacted_obj is None:
             self.last_interacted_obj = colliding_toast
         else:

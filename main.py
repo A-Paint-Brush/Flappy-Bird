@@ -43,7 +43,7 @@ class MainProc:
         self.key_table: Dict[str, int] = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
         for char in "abciklorxyz":
             # Generate all needed key codes.
-            exec(f"self.key_table['{char}'] = pygame.K_{char}")
+            exec("self.key_table['{c}'] = pygame.K_{c}".format(c=char))
         konami_string = "↑↑↓↓←→←→ba"
         magic_string = "xyzzy"
         rickroll_string = "rickroll"
@@ -226,6 +226,7 @@ class StateManager:
 
 if __name__ == "__main__":
     if pygame.version.vernum >= (2, 0, 1):
+        configure_dpi()
         MainProc()
     else:
         print("This game requires Pygame version 2.0.1 or higher to run. Consider updating your version of Pygame "

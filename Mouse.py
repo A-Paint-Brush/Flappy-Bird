@@ -85,7 +85,9 @@ class Cursor(pygame.sprite.Sprite):
         new_cur.z_index = self.z_index
         new_cur.set_pos(self.x, self.y)
         new_cur.scroll_amount = self.scroll_amount
-        new_cur.leave = self.leave
+        if self.leave:
+            new_cur.mask.clear()
+            new_cur.leave = True
         return new_cur
 
     def reset_z_index(self) -> None:
@@ -129,11 +131,13 @@ class Cursor(pygame.sprite.Sprite):
         return self.scroll_amount
 
     def mouse_enter(self) -> None:
+        self.mask.fill()
         self.leave = False
 
     def mouse_leave(self) -> None:
         """Should be called when the mouse cursor exits the window."""
         self.set_pos(-1, -1)
+        self.mask.clear()
         self.scroll_amount = 0
         self.leave = True
         if any(self.buttons):

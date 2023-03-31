@@ -1,4 +1,6 @@
 from typing import *
+from ctypes import windll
+import platform
 import pygame.transform
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -21,7 +23,7 @@ def collide_function(sprite1: pygame.sprite.Sprite, sprite2: pygame.sprite.Sprit
     return result is not None
 
 
-def resize_surf(display_surf: pygame.Surface, size: List) -> pygame.Surface:
+def resize_surf(display_surf: pygame.Surface, size: Union[List, Tuple]) -> pygame.Surface:
     current_size = display_surf.get_size()
     new_size = [0, 0]
     if current_size[0] * (size[1] / current_size[1]) < size[0]:
@@ -152,3 +154,28 @@ def word_wrap_text(string: str, width: int, font: pygame.font.Font, br: str = "-
                     lines[-1].append(br)
                 lines.append([char])
     return ["".join(line) for line in lines]
+
+
+def configure_dpi() -> None:
+    """If current OS is Windows, attempts to configure the Python process to be DPI aware."""
+    if platform.system() == "Windows":
+        if not post_win8_config_dpi():
+            pre_win8_config_dpi()
+
+
+def post_win8_config_dpi() -> bool:
+    try:
+        windll.shcore.SetProcessDpiAwareness(2)
+    except (OSError, AttributeError):
+        return False
+    else:
+        return True
+
+
+def pre_win8_config_dpi() -> bool:
+    try:
+        windll.shcore.SetProcessDPIAware()
+    except (OSError, AttributeError):
+        return False
+    else:
+        return True

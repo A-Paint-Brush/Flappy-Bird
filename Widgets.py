@@ -71,6 +71,7 @@ class AnimatedSurface(BaseWidget):
                  y: Union[int, float],
                  surface: pygame.Surface,
                  callback: Optional[Callable[[], None]],
+                 widen_amount: int = 60,
                  widget_name: str = "!animated_surf"):
         """Animates a static surface image to dilate on mouse-hover and shrink on mouse-leave. When clicked, the surface
         flashes and calls the callback function given at initialization."""
@@ -85,7 +86,7 @@ class AnimatedSurface(BaseWidget):
         self.image = self.original_surface.copy()
         self.current_width = self.original_width
         self.current_height = self.original_height
-        self.max_width = self.original_width + 60
+        self.max_width = self.original_width + widen_amount
         self.min_width = self.original_width
         self.aspect_ratio = self.original_height / self.original_width
         # endregion
@@ -198,6 +199,17 @@ class AnimatedSurface(BaseWidget):
         self.set_size(self.calc_physics(self.delta_timer.get_time(), direction))
         self.delta_timer.reset_timer()
 
+    @staticmethod
+    def calc_size(y_pos: int, og_width: int, og_height: int, widen_amount: int = 60) -> Tuple[float, float]:
+        """Returns the top and bottom y coordinates of the button when it is at its max size."""
+        aspect_ratio = og_height / og_width
+        max_width = og_width + widen_amount
+        min_height = og_width * aspect_ratio
+        max_height = max_width * aspect_ratio
+        min_top_y = y_pos - (max_height - min_height) / 2
+        max_bottom_y = min_top_y + max_height
+        return min_top_y, max_bottom_y
+
 
 class Button(AnimatedSurface):
     def __init__(self,
@@ -211,13 +223,14 @@ class Button(AnimatedSurface):
                  font: pygame.font.Font,
                  text: str,
                  callback: Optional[Callable[[], None]],
+                 widen_amount: int = 60,
                  widget_name: str = "!button"):
         """Similar to AnimatedSurface, except it accepts a font object and a string in order to create the surface
         dynamically. The shape of the button is a two-cornered rounded rect."""
         button_surf = pygame.Surface((width, height), flags=pygame.SRCALPHA)
         button_surf.fill((0, 0, 0, 0))
         draw_button(button_surf, 0, 0, width, height, border, fg, bg, font, text)
-        super().__init__(x, y, button_surf, callback, widget_name)
+        super().__init__(x, y, button_surf, callback, widen_amount, widget_name)
 
 
 class Label(BaseWidget):
@@ -250,6 +263,8 @@ class Checkbox(BaseWidget):
                  x: Union[int, float],
                  y: Union[int, float],
                  label_text: str,
+                 button_length: int,
+                 border_radius: int,
                  text_color: Tuple[int, int, int],
                  bg: Tuple[int, int, int],
                  width: int,
@@ -262,8 +277,8 @@ class Checkbox(BaseWidget):
         super().__init__(widget_name)
         self.x = x
         self.y = y
-        self.button_length = 35
-        self.button_radius = 10
+        self.button_length = button_length
+        self.button_radius = border_radius
         self.text_lines = word_wrap_text(label_text, width - padding * 3 - self.button_length, font)
         self.line_height = font.size("|")[1]
         self.checked = False
@@ -353,7 +368,8 @@ class Box(pygame.sprite.Sprite):
 
 class RadioGroup:
     def __init__(self, default: int = 0):
-        """A class designated for managing a group of radio buttons."""
+        """Used for managing a group of radio buttons. Create all needed radio buttons with the 'create_radio_button'
+        method, then add this class instance to a frame when done."""
         super().__init__()
         self.default = default
         self.counter_id = 0
@@ -364,6 +380,9 @@ class RadioGroup:
                             x: Union[int, float],
                             y: Union[int, float],
                             label_text: str,
+                            button_length: int,
+                            border_radius: int,
+                            selected_radius: int,
                             text_color: Tuple[int, int, int],
                             bg: Tuple[int, int, int],
                             width: int,
@@ -371,8 +390,9 @@ class RadioGroup:
                             padding: int,
                             border: int,
                             widget_name: str = "!radio_button") -> None:
-        radio_button = RadioButton(self.counter_id, self.update_selection, self.counter_id == self.default,
-                                   x, y, label_text, text_color, bg, width, font, padding, border, widget_name)
+        radio_button = RadioButton(self.counter_id, self.update_selection, self.counter_id == self.default, x, y,
+                                   label_text, button_length, border_radius, selected_radius, text_color, bg, width,
+                                   font, padding, border, widget_name)
         self.children.append(radio_button)
         self.counter_id += 1
 
@@ -400,6 +420,9 @@ class RadioButton(Checkbox):
                  x: Union[int, float],
                  y: Union[int, float],
                  label_text: str,
+                 button_length: int,
+                 border_radius: int,
+                 selected_radius: int,
                  text_color: Tuple[int, int, int],
                  bg: Tuple[int, int, int],
                  width: int,
@@ -410,11 +433,12 @@ class RadioButton(Checkbox):
         """A simple radio button widget. When a radio button is selected, all other radio-buttons in the same group will
          be unselected. The radio button which is selected by default is determined by the 'default' parameter passed to
          the RadioGroup class."""
-        super().__init__(x, y, label_text, text_color, bg, width, font, padding, border, widget_name)
+        super().__init__(x, y, label_text, button_length, border_radius, text_color, bg, width, font, padding, border,
+                         widget_name)
         self.id = radio_id
-        self.button_length = 35
-        self.button_radius = 15
-        self.__button = Circle(padding, padding, self.button_radius, border, radio_id, callback, selected)
+        self.button_radius = round(button_length / 2)
+        self.__button = Circle(padding, padding, self.button_radius, border, selected_radius, radio_id, callback,
+                               selected)
 
     def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> None:
         abs_pos = mouse_obj.get_pos()
@@ -436,6 +460,7 @@ class Circle(pygame.sprite.Sprite):
                  y: Union[int, float],
                  radius: int,
                  border: int,
+                 selected_radius: int,
                  radio_id: int,
                  on_click: Callable[[int], None],
                  selected: bool = False):
@@ -445,6 +470,7 @@ class Circle(pygame.sprite.Sprite):
         self.y = y
         self.radius = radius
         self.border = border
+        self.selected_radius = selected_radius
         self.callback = on_click
         self.normal_color = GREY3
         self.active_color = CYAN
@@ -479,7 +505,7 @@ class Circle(pygame.sprite.Sprite):
             self.current_color = self.active_color
         pygame.draw.circle(self.image, self.current_color, (self.radius, self.radius), self.radius - self.border, 0)
         if self.selected:
-            pygame.draw.circle(self.image, BLACK, (self.radius, self.radius), self.radius - 5, 0)
+            pygame.draw.circle(self.image, BLACK, (self.radius, self.radius), self.selected_radius, 0)
 
     def unselect(self) -> None:
         self.selected = False
@@ -747,7 +773,7 @@ class Entry(BaseWidget):
                 self.text_canvas.end_dnd_event()
             if self.selecting:
                 self.selecting = False
-                if mouse_obj.get_pos() != (-1, -1):
+                if not mouse_obj.has_left():
                     self.text_canvas.update_caret_pos(rel_mouse.get_pos())
                 self.text_canvas.end_selection()
             self.drag_pos_recorded = False
@@ -1343,6 +1369,7 @@ class Slider(BaseWidget):
                  font: pygame.font.Font,
                  min_value: int,
                  max_value: int,
+                 text_padding: int = 10,
                  mark_height: int = 0,
                  widget_name: str = "!slider"):
         """A simple slider widget. When the parameter 'mark_height' is greater than 0, lines of that height will be
@@ -1358,7 +1385,7 @@ class Slider(BaseWidget):
         self.dormant_line_color = dormant_line_color
         self.active_line_color = active_line_color
         self.thumb_width = thumb_width
-        self.text_padding = 10  # The padding between the number display and the slider.
+        self.text_padding = text_padding  # The padding between the number display and the slider.
         self.gauge_height = mark_height
         self.max_text_width = self.resize_text(str(max_value))[0]
         self.width = self.thumb_width + self.line_length + self.text_padding + self.max_text_width
@@ -1425,6 +1452,20 @@ class Slider(BaseWidget):
 
     def get_slider_value(self) -> int:
         return self.slider_thumb.get_value()
+
+    @staticmethod
+    def calc_size(text_height: int,
+                  line_length: int,
+                  thumb_width: int,
+                  thumb_height: int,
+                  font: pygame.font.Font,
+                  max_value: int,
+                  text_padding: int = 10) -> Tuple[float, int]:
+        text_size = font.size(str(max_value))
+        max_text_width = text_height * (text_size[0] / text_size[1])
+        width = thumb_width + line_length + text_padding + max_text_width
+        height = max(text_height, thumb_height)
+        return width, height
 
 
 class SliderButton(pygame.sprite.Sprite):

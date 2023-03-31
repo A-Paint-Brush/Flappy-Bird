@@ -3,6 +3,8 @@ This file demonstrates usage of the GUI toolkit in the 'Widgets.py' module. You 
 the UI of this script when run.
 """
 from typing import *
+from functools import partial
+from collections import namedtuple
 import os.path
 import sys
 import pygame
@@ -29,7 +31,7 @@ class MainProc:
     def __init__(self):
         """The mainloop of this program."""
         pygame.init()
-        self.resolution = (513, 450)
+        self.resolution = (641, 563)  # Og size: (513, 450)
         self.listen_events = (pygame.QUIT,
                               pygame.WINDOWFOCUSLOST,
                               pygame.WINDOWENTER,
@@ -46,56 +48,112 @@ class MainProc:
         pygame.event.set_blocked(None)
         pygame.event.set_allowed(self.listen_events)
         pygame.key.stop_text_input()  # Ensure IME input is off when the window first opens.
-        self.font = pygame.font.Font(resolve_path("./Fonts/Arial/normal.ttf"), 28)
-        self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 16)
+        self.font = pygame.font.Font(resolve_path("./Fonts/Arial/normal.ttf"), 35)
+        self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 20)
         self.mouse = Mouse.Cursor()
         self.clock = pygame.time.Clock()
-        self.transition = None
-        self.transition_ready = False
-        self.popup_window: Optional[ChildWindow] = None
-        self.counter1 = 0
-        self.counter2 = 0
+        self.special_widgets: Dict[str, Union[tuple, Widgets.SceneTransition, ChildWindow]] = {}
         self.fps = 60
         self.game_run = True
         self.key_events = []
         # region Initialize Frame
-        self.content_frame = Widgets.Frame(0, 0, self.resolution[0], self.resolution[1], 20, 2, "canvas1")
+        scrollbar_width = 20
+        content_width = self.resolution[0] - scrollbar_width
+        margin = 10
+        accumulated_y = margin
+        self.counters = [0, 0]
+        self.checkboxes = []
+        self.entries = []
+        self.content_frame = Widgets.Frame(0, 0, self.resolution[0], self.resolution[1], 20, 2)
+        widget_size = [(210, 60), (238, 69)]
+        widget_data = [list(Widgets.Button.calc_size(0, *widget_size[0])),
+                       list(Widgets.Button.calc_size(0, *widget_size[1]))]
+        for w in range(len(widget_data)):
+            widget_data[w][0] = abs(widget_data[w][0])
+            widget_data[w][1] += widget_data[w][0]
         text = self.font.render("Give her up", True, BLACK)
-        btn_surf = pygame.Surface((text.get_size()[0] + 30, text.get_size()[1] + 20))
+        text = Global.resize_surf(text, (widget_size[0][0] - 30, widget_size[0][1] - 10))
+        btn_surf = pygame.Surface(widget_size[0])
         btn_surf.fill((215, 215, 215))
-        btn_surf.blit(text, self.center_widget(btn_surf.get_size(), text.get_size()))
-        self.content_frame.add_widget(Widgets.AnimatedSurface(40, 20, btn_surf, self.add_counter1))
-        self.content_frame.add_widget(Widgets.Button(270, 20, 190, 55, 1, BLACK, ORANGE, self.font, "Let her down",
-                                                     self.add_counter2, "button1"))
-        self.checkbox1 = Widgets.Checkbox(12, 90, "Run around and desert her?", BLACK, ORANGE, 230, self.font, 20, 1,
-                                          "checkbox1")
-        self.content_frame.add_widget(self.checkbox1)
-        self.checkbox2 = Widgets.Checkbox(252, 90, "Together forever and never to part?", BLACK, ORANGE, 230, self.font,
-                                          20, 1, "checkbox2")
-        self.content_frame.add_widget(self.checkbox2)
+        btn_surf.blit(text, (btn_surf.get_width() / 2 - text.get_width() / 2,
+                             btn_surf.get_height() / 2 - text.get_height() / 2))
+        self.content_frame.add_widget(
+            Widgets.AnimatedSurface(content_width / 4 - btn_surf.get_width() / 2,
+                                    accumulated_y + widget_data[0][0] + (0 if widget_data[0][1] > widget_data[1][1]
+                                                                         else (widget_data[1][1] / 2
+                                                                               - widget_data[0][1] / 2)),
+                                    btn_surf, partial(self.increment_counter, 0)))
+        self.content_frame.add_widget(
+            Widgets.Button((3 * content_width - 2 * widget_size[1][0]) / 4,
+                           accumulated_y + widget_data[1][0] + (0 if widget_data[1][1] > widget_data[0][1]
+                                                                else (widget_data[0][1] / 2 - widget_data[1][1] / 2)),
+                           widget_size[1][0], widget_size[1][1], 1, BLACK, ORANGE, self.font, "Let her down",
+                           partial(self.increment_counter, 1), widget_name="button1"))
+        accumulated_y += max(w[1] for w in widget_data) + margin
+        widget_size = (content_width - margin) / 2
+        for index, text in enumerate(("Run around and desert her?", "Together forever and never to part?")):
+            self.checkboxes.append(Widgets.Checkbox(margin + widget_size * index, accumulated_y, text, 44, 13, BLACK,
+                                                    ORANGE, round(widget_size - margin), self.font, 20, 1,
+                                                    widget_name="checkbox{}".format(index + 1)))
+            self.content_frame.add_widget(self.checkboxes[-1])
+        accumulated_y += max(w.rect.height for w in self.checkboxes) + margin
+        widget_size = (content_width - margin) / 3
         self.radio_group = Widgets.RadioGroup()
-        self.radio_group.create_radio_button(12, 300, "Make her cry", BLACK, ORANGE, 150, self.font, 20, 1, "radio1")
-        self.radio_group.create_radio_button(172, 300, "Say goodbye", BLACK, ORANGE, 150, self.font, 20, 1, "radio2")
-        self.radio_group.create_radio_button(332, 300, "Tell a lie and hurt her", BLACK, ORANGE, 150, self.font, 20, 1,
-                                             "radio3")
+        for index, text in enumerate(("Make her cry", "Say goodbye", "Tell a lie and hurt her")):
+            self.radio_group.create_radio_button(margin + widget_size * index, accumulated_y, text, 44, 13, 15, BLACK,
+                                                 ORANGE, round(widget_size - margin), self.font, 20, 1,
+                                                 widget_name="radio{}".format(index + 1))
         self.content_frame.add_widget(self.radio_group)
-        self.slider = Widgets.Slider(30, 620, 25, BLACK, 400, 5, (250, 50, 50), (0, 255, 0), 10, 30, (0, 130, 205),
-                                     (155, 205, 0), self.mandarin_font, 1, 100, 7)
+        accumulated_y += max(w.rect.height for w in self.radio_group.get_children()) + margin
+        widget_size = namedtuple("slider_args", ["text_height", "line_length", "thumb_width", "thumb_height", "font",
+                                                 "max_value"])(text_height=31, line_length=500, thumb_width=13,
+                                                               thumb_height=38, font=self.font, max_value=100)
+        widget_data = Widgets.Slider.calc_size(*widget_size)
+        self.slider = Widgets.Slider(round(content_width / 2 - widget_data[0] / 2), accumulated_y,
+                                     widget_size.text_height, BLACK, widget_size.line_length, 5, (250, 50, 50),
+                                     (0, 255, 0), widget_size.thumb_width, widget_size.thumb_height, (0, 130, 205),
+                                     (155, 205, 0), widget_size.font, 1, widget_size.max_value, mark_height=7)
         self.content_frame.add_widget(self.slider)
-        self.entry1 = Widgets.Entry(10, 670, 150, 30, 4, self.mandarin_font, BLACK, "entry1")
-        self.content_frame.add_widget(self.entry1)
-        self.entry2 = Widgets.Entry(170, 670, 150, 30, 4, self.mandarin_font, BLACK, "entry2")
-        self.content_frame.add_widget(self.entry2)
-        self.entry3 = Widgets.Entry(330, 670, 150, 30, 4, self.mandarin_font, BLACK, "entry3")
-        self.content_frame.add_widget(self.entry3)
-        self.content_frame.add_widget(Widgets.Button(180, 712, 150, 55, 1, BLACK, ORANGE, self.font, "Submit",
-                                                     self.submit, "button2"))
-        self.content_frame.add_widget(Widgets.Spinner(50, 790, 100, 15, 90, 250, (205, 205, 205), (26, 134, 219)))
-        self.content_frame.add_widget(Widgets.Button(193, 815, 260, 55, 1, BLACK, ORANGE, self.font, "Test Transition",
-                                                     self.init_transition, "button3"))
-        self.content_frame.add_widget(Widgets.Button(140, 940, 230, 55, 1, BLACK, ORANGE, self.font, "Open Window",
-                                                     self.spawn_window, "button4"))
-        self.content_frame.add_widget(Widgets.ScrollBar())
+        accumulated_y += widget_data[1] + margin
+        widget_size = (189, 38)
+        for index, position in enumerate((17.5, 50, 82.5)):
+            self.entries.append(Widgets.Entry(content_width * (position / 100) - widget_size[0] / 2, accumulated_y,
+                                              widget_size[0], widget_size[1], 4, self.mandarin_font, BLACK,
+                                              widget_name="entry{}".format(index + 1)))
+            self.content_frame.add_widget(self.entries[-1])
+        accumulated_y += widget_size[1] + margin
+        widget_size = (188, 69)
+        widget_data = list(Widgets.Button.calc_size(0, *widget_size))
+        widget_data[1] += abs(widget_data[0])
+        self.content_frame.add_widget(Widgets.Button(content_width / 2 - widget_size[0] / 2,
+                                                     accumulated_y + abs(widget_data[0]), widget_size[0],
+                                                     widget_size[1], 1, BLACK, ORANGE, self.font, "Submit",
+                                                     self.submit, widget_name="button2"))
+        accumulated_y += widget_data[1] + margin
+        widget_size = [(125, 125), (216, 69)]
+        widget_data = [list(Widgets.Button.calc_size(0, *widget_size[1]))]
+        widget_data[0][0] = abs(widget_data[0][0])
+        widget_data[0][1] += widget_data[0][0]
+        self.content_frame.add_widget(Widgets.Spinner(
+            content_width / 4 - widget_size[0][0] / 2,
+            accumulated_y + (0 if widget_size[0][1] > widget_data[0][1]
+                             else (widget_data[0][1] / 2 - widget_size[0][1] / 2)),
+            widget_size[0][1], 19, 90, 250, (205, 205, 205), (26, 134, 219)))
+        self.content_frame.add_widget(
+            Widgets.Button((3 * content_width - 2 * widget_size[1][0]) / 4,
+                           accumulated_y + widget_data[0][0] + (0 if widget_data[0][1] > widget_size[0][1]
+                                                                else (widget_size[0][1] / 2 - widget_data[0][1] / 2)),
+                           widget_size[1][0], widget_size[1][1], 1, BLACK, ORANGE, self.font, "Transition",
+                           self.start_transition, widget_name="button3"))
+        accumulated_y += max((widget_size[0][1], widget_data[0][1])) + margin
+        widget_size = (288, 69)
+        widget_data = [list(Widgets.Button.calc_size(0, *widget_size))]
+        widget_data[0][1] += abs(widget_data[0][0])
+        self.content_frame.add_widget(Widgets.Button(content_width / 2 - widget_size[0] / 2,
+                                                     accumulated_y + abs(widget_data[0][0]), widget_size[0],
+                                                     widget_size[1], 1, BLACK, ORANGE, self.font, "Open Window",
+                                                     self.spawn_window, widget_name="button4"))
+        self.content_frame.add_widget(Widgets.ScrollBar(width=scrollbar_width))
         # endregion
         while self.game_run:
             self.clock.tick(self.fps)
@@ -119,65 +177,56 @@ class MainProc:
                     self.key_events.append(event)
             self.mouse.set_pos(*pygame.mouse.get_pos())
             self.mouse.reset_z_index()
-            if self.transition is None and self.popup_window is None:
+            if "transition" in self.special_widgets and isinstance(self.special_widgets["transition"], tuple):
+                self.special_widgets["transition"] = Widgets.SceneTransition(*self.special_widgets["transition"])
+            elif "window" in self.special_widgets and isinstance(self.special_widgets["window"], tuple):
+                self.special_widgets["window"] = ChildWindow(*self.special_widgets["window"])
+            if "transition" in self.special_widgets and isinstance(self.special_widgets["transition"],
+                                                                   Widgets.SceneTransition):
+                return_code = self.special_widgets["transition"].update()
+                if return_code == 2:
+                    self.special_widgets.pop("transition")
+            elif "window" in self.special_widgets and isinstance(self.special_widgets["window"], ChildWindow):
+                return_code = self.special_widgets["window"].update(self.mouse, self.key_events)
+                if return_code:
+                    self.special_widgets.pop("window")
+            else:
                 # Only allow mouse events to be passed to the widget-group if there aren't any other objects over it.
                 self.mouse.increment_z_index()
-            elif self.transition is not None:
-                return_code = self.transition.update()
-                if return_code == 2:
-                    self.transition = None
-            elif self.popup_window is not None:
-                return_code = self.popup_window.update(self.mouse, self.key_events)
-                if return_code:
-                    self.popup_window = None
             self.content_frame.update(self.mouse, self.key_events)
             self.display.fill(BLUE)
             self.display.blit(self.content_frame.image, self.content_frame.rect)
-            if self.transition is not None:
-                if self.transition_ready:
-                    self.display.blit(self.transition.image, self.transition.rect)
-                else:
-                    self.transition_ready = True
-            elif self.popup_window is not None:
-                self.popup_window.draw()
+            if "transition" in self.special_widgets and isinstance(self.special_widgets["transition"],
+                                                                   Widgets.SceneTransition):
+                self.display.blit(self.special_widgets["transition"].image, self.special_widgets["transition"].rect)
+            elif "window" in self.special_widgets and isinstance(self.special_widgets["window"], ChildWindow):
+                self.special_widgets["window"].draw()
             pygame.display.flip()
         pygame.quit()
 
-    @staticmethod
-    def center_widget(container_size: Tuple[int, int], content_size: Tuple[int, int]) -> Tuple[float, float]:
-        return container_size[0] / 2 - content_size[0] / 2, container_size[1] / 2 - content_size[1] / 2
+    def increment_counter(self, index: int) -> None:
+        self.counters[index] += 1
 
-    def add_counter1(self) -> None:
-        self.counter1 += 1
-
-    def add_counter2(self) -> None:
-        self.counter2 += 1
-
-    def init_transition(self) -> None:
-        if self.transition is None:
-            self.transition = Widgets.SceneTransition(self.resolution[0], self.resolution[1], 400)
-            self.transition_ready = False
+    def start_transition(self) -> None:
+        if "transition" not in self.special_widgets:
+            self.special_widgets["transition"] = (self.resolution[0], self.resolution[1], 400)
 
     def spawn_window(self) -> None:
-        self.popup_window = ChildWindow(self.display, self.resolution, (300, 200), 15, 15, 10, 4, 0.05, 200, 1)
+        if "window" not in self.special_widgets:
+            widget_size = (375, 250)
+            padding = 50
+            self.special_widgets["window"] = (self.display, self.resolution, widget_size, 19, 19, 10, 4, 0.05,
+                                              widget_size[0] - 2 * padding)
 
     def submit(self) -> None:
-        print("{}\nLove Stats:\nYou gave her up {} times.\nYou let her down {} times.\n"
+        print("{}\nLove Stats:\nYou gave her up {} time(s).\nYou let her down {} time(s).\n"
               "You {} run around and desert her.\nYou {} stay with her forever and not part with her.\n"
               "You chose to {}.\nThe three messages you left her are: '{}', '{}', '{}'.\n"
               "You're {}% in love with Miss Rick."
-              .format("-" * 35,
-                      self.counter1,
-                      self.counter2,
-                      "DID" if self.checkbox1.get_data() else "DIDN'T",
-                      "DID" if self.checkbox2.get_data() else "DIDN'T",
+              .format("-" * 35, *[i for i in self.counters],
+                      *["DID" if checkbox.get_data() else "DIDN'T" for checkbox in self.checkboxes],
                       ("make her cry", "say goodbye", "tell a lie and hurt her")[self.radio_group.get_selected()],
-                      self.entry1.get_entry_content(),
-                      self.entry2.get_entry_content(),
-                      self.entry3.get_entry_content(),
-                      self.slider.get_slider_value()))
-        self.counter1 = 0
-        self.counter2 = 0
+                      *[entry.get_entry_content() for entry in self.entries], self.slider.get_slider_value()))
 
 
 class ChildWindow:
@@ -191,20 +240,23 @@ class ChildWindow:
                  button_thickness: int,
                  animation_speed: Union[int, float],
                  word_wrap_width: int,
-                 z_index: int):
-        """A child window that displays several hundred lines of placeholder text in a scrollable frame. This is an
-        example of how to use the window widget."""
+                 scrollbar_width: int = 20,
+                 z_index: int = 1):
+        """A child window that displays lots of text in a scrollable frame. This is an example of how to use the window
+        widget."""
         self.frame_size = (window_size[0] - border_radius * 2,
                            window_size[1] - border_radius * 2 - button_length - button_padding)
+        self.scrollbar_width = scrollbar_width
+        self.content_width = self.frame_size[0] - self.scrollbar_width
         self.window_size = window_size
         self.accumulated_height = 0
         self.w_id_counter = 1
-        self.word_wrap_width = word_wrap_width
+        self.word_wrap_width = word_wrap_width - self.scrollbar_width
         self.vertical_padding = 20
-        self.font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 18)
+        self.font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 23)
         # region Initialize Frame
         # Note that the position of the frame isn't important, since it will be handled by the window it's displayed in.
-        self.content_frame = Widgets.Frame(-1, -1, self.frame_size[0], self.frame_size[1], 20, z_index)
+        self.content_frame = Widgets.Frame(0, 0, self.frame_size[0], self.frame_size[1], 20, z_index)
         for s in ("Hello, world!\n您好，世界！",
                   "The quick brown fox jumps over the lazy dog.\n敏捷地棕色狐狸跳過了懶惰地狗。",
                   "Lorem ipsum dolor sit amet.\n微風迎客，軟語伴茶。"):
@@ -214,7 +266,7 @@ class ChildWindow:
             self.create_label("{}.\n{}。".format(*self.beer_string(i)))
             if i > 0:
                 self.create_label("Take one down, pass it around.\n拿一瓶下來，分給大家喝。")
-        self.content_frame.add_widget(Widgets.ScrollBar())
+        self.content_frame.add_widget(Widgets.ScrollBar(width=self.scrollbar_width))
         # endregion
         self.window = Widgets.Window(resolution[0] / 2 - window_size[0] / 2, resolution[1],
                                      resolution[1] / 2 - window_size[1] / 2, GREEN, 100, RED, GREY2, border_radius,
@@ -222,17 +274,17 @@ class ChildWindow:
                                      self.content_frame, surface, z_index)
 
     @staticmethod
-    def beer_string(beer_number: int) -> Tuple[str, str]:
+    def beer_string(beer_number: int) -> Tuple[str, ...]:
         if beer_number > 1:
-            return f"{beer_number} bottles of beer", f"{beer_number}瓶酒"
+            return tuple("{n} bottles of beer;{n}瓶酒".format(n=beer_number).split(";"))
         elif beer_number == 1:
             return "One bottle of beer", "一瓶酒"
         else:
             return "No more bottles of beer", "已經沒有任何酒"
 
     def create_label(self, string: str) -> None:
-        label = Widgets.Label(self.frame_size[0] / 2 - self.word_wrap_width / 2, self.accumulated_height, string, BLACK,
-                              self.word_wrap_width, self.font, f"!label{self.w_id_counter}")
+        label = Widgets.Label(self.content_width / 2 - self.word_wrap_width / 2, self.accumulated_height, string, BLACK,
+                              self.word_wrap_width, self.font, "!label{}".format(self.w_id_counter))
         self.accumulated_height += label.rect.height + self.vertical_padding
         self.content_frame.add_widget(label)
         self.w_id_counter += 1
@@ -248,7 +300,9 @@ if __name__ == "__main__":
     sys.path.extend((get_root_dir(),))
     import Widgets
     import Mouse
+    import Global
     if pygame.version.vernum >= (2, 0, 1):
+        Global.configure_dpi()
         MainProc()
     else:
         print("This game requires Pygame version 2.0.1 or higher to run. Consider updating your version of Pygame "

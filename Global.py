@@ -2,10 +2,12 @@ from typing import *
 from ctypes import windll
 import platform
 import pygame.transform
+import pygame.colordict
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 ORANGE = (255, 160, 20)
 YELLOW = (222, 216, 149)
+GREEN = pygame.colordict.THECOLORS["darkolivegreen1"]
 BLUE = (26, 134, 219)
 CYAN = (112, 197, 206)
 GREY1 = (240, 240, 240)
@@ -150,8 +152,9 @@ def word_wrap_text(string: str, width: int, font: pygame.font.Font, br: str = "-
                 lines.append(last_word)
                 lines[-1].append(char)
             else:
-                if lines[-1][-1].isascii():  # Chinese characters do not need a dash on line-breaking.
-                    lines[-1].append(br)
+                if lines and lines[-1]:
+                    if lines[-1][-1].isascii():  # Chinese characters do not need a dash on line-breaking.
+                        lines[-1].append(br)
                 lines.append([char])
     return ["".join(line) for line in lines]
 

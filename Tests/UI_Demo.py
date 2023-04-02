@@ -214,7 +214,7 @@ class MainProc:
     def spawn_window(self) -> None:
         if "window" not in self.special_widgets:
             widget_size = (375, 250)
-            padding = 50
+            padding = 12
             self.special_widgets["window"] = (self.display, self.resolution, widget_size, 19, 19, 10, 4, 0.05,
                                               widget_size[0] - 2 * padding)
 
@@ -251,7 +251,7 @@ class ChildWindow:
         self.window_size = window_size
         self.accumulated_height = 0
         self.w_id_counter = 1
-        self.word_wrap_width = word_wrap_width - self.scrollbar_width
+        self.word_wrap_width = word_wrap_width - border_radius * 2 - self.scrollbar_width
         self.vertical_padding = 20
         self.font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 23)
         # region Initialize Frame

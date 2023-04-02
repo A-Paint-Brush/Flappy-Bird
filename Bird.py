@@ -205,19 +205,15 @@ class Bird(pygame.sprite.Sprite):
 
 
 class BirdManager(pygame.sprite.Group):
-    def __init__(self, resolution: Tuple[int, int]):
+    def __init__(self, resolution: Tuple[int, int], z_index: int):
         super().__init__()
         self.resolution = resolution
         self.spawned = False
         self.bird_object = None
         self.clicked = False
-        self.z_index = 2
+        self.z_index = z_index
 
-    def click(self,
-              state_data: dataclasses.dataclass,
-              ground_group: Ground.GroundGroup,
-              pipe_group: Pipe.PipeGroup,
-              mouse_object: Mouse.Cursor,
+    def click(self, state_data: dataclasses.dataclass, pipe_group: Pipe.PipeGroup, mouse_object: Mouse.Cursor,
               mouse_initiated: bool) -> None:
         if mouse_initiated:
             if not self.z_index == mouse_object.get_z_index():
@@ -228,12 +224,7 @@ class BirdManager(pygame.sprite.Group):
         if not mouse_initiated or (mouse_initiated and not self.clicked):
             if mouse_initiated:
                 self.clicked = True
-            if state_data.game_state == "menu":
-                self.spawned = True
-                self.bird_object = Bird(self.resolution, ground_group.get_size())
-                self.add(self.bird_object)
-                state_data.game_state = "waiting"
-            elif state_data.game_state == "waiting":
+            if state_data.game_state == "waiting":
                 state_data.game_state = "started"
                 pipe_group.generate()
                 self.bird_object.init_gravity_physics()
@@ -244,6 +235,13 @@ class BirdManager(pygame.sprite.Group):
                 pass
         if mouse_initiated:
             mouse_object.increment_z_index()  # It's not possible to fail to interact with the bird :)
+
+    def spawn_bird(self, state_data: dataclasses.dataclass, ground_group: Ground.GroundGroup) -> None:
+        if state_data.game_state == "menu":
+            self.spawned = True
+            self.bird_object = Bird(self.resolution, ground_group.get_size())
+            self.add(self.bird_object)
+            state_data.game_state = "waiting"
 
     def die(self, state_data: dataclasses.dataclass) -> None:
         state_data.game_state = "dying"
@@ -280,25 +278,22 @@ class BirdManager(pygame.sprite.Group):
         speed, movement = self.bird_object.tick()
         vertical_collide = self.bird_object.move_collide(movement, pipe_group, True)
         if vertical_collide[0]:
-            print("Vertical movement collision")
             return 1, vertical_collide[1]
         rotation_collide = self.bird_object.calc_angle(speed, pipe_group, True)
         if rotation_collide[0]:
-            print("Rotation collision")
             return 2, rotation_collide[1]
         amount = self.move_ground_tiles(ground_group)
         pipe_collide = pipe_group.move(amount, self.bird_object)
         if pipe_collide[0]:
-            print("Pipe movement collision")
             return 3, pipe_collide[1]
         pipe_group.kill_colliding()
         ground_collide = self.bird_object.collision_detection(ground_group.get_pos())
         if ground_collide == 1:
-            print("Ground collision")
             return 4, None
         return 0, None
 
-    def move_ground_tiles(self, ground_group: Ground.GroundGroup) -> Union[int, float]:
+    @staticmethod
+    def move_ground_tiles(ground_group: Ground.GroundGroup) -> Union[int, float]:
         amount = ground_group.move()
         ground_group.reset_pos()
         return amount

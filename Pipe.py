@@ -20,7 +20,7 @@ class Pipe(pygame.sprite.Sprite):
         # Maximum value of bottom pipe y position: y = resolution[1] - min_length
         # Y position of top pipe: bottom_pipe_y - constant
         self.gap_distance = 145  # Production distance: 145, Debug distance: 400
-        self.min_length = 53
+        self.min_length = 66
         self.bottom_pipe_pos = (0, random.randint(self.min_length + self.gap_distance, self.resolution[1] - self.min_length))
         self.top_pipe_pos = (0, self.bottom_pipe_pos[1] - self.gap_distance - self.height)
         self.image = pygame.Surface((self.width, self.resolution[1]))
@@ -81,7 +81,7 @@ class PipeGroup(pygame.sprite.Group):
         self.ground_size = ground_size
         self.temp = Pipe(-1, resolution, self.ground_size)
         self.sprite_objects = []
-        self.pipe_distance = 170
+        self.pipe_distance = 213
         self.collide_init = False
         self.flash_pipe = None  # Stores the pipe object that has to be flashed.
 
@@ -135,4 +135,4 @@ class PipeGroup(pygame.sprite.Group):
 
     def draw_hit_box(self, surface: pygame.Surface) -> None:
         for pipe in self.sprite_objects:
-            pygame.draw.rect(surface, BLACK, pipe.get_rect(), 1)
+            pygame.draw.rect(surface, BLACK, pipe.rect, 1)

@@ -10,19 +10,19 @@ class ToastNotifier(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int], y_pos: int, message_title: str, message_text: str, toast_id: int):
         super().__init__()
         self.id = toast_id
-        self.title_font = pygame.font.Font(normpath("Fonts/Arial/bold.ttf"), 20)
-        self.body_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 18)
-        self.icon_img = pygame.Surface((50, 50))
+        self.title_font = pygame.font.Font(normpath("Fonts/Arial/bold.ttf"), 25)
+        self.body_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 23)
+        self.icon_img = pygame.Surface((63, 63))
         self.icon_img.fill(BLACK)
         self.image_padding = 15
         self.resolution = resolution
         self.x = self.resolution[0]
         self.y = y_pos
-        self.width = 320
-        self.corner_radius = 15
+        self.width = 400
+        self.corner_radius = 19
         # Close button costumes: (Not hovered, hovered, hidden)
         self.close_btn_thickness = 4
-        self.close_btn_size = (15, 15)
+        self.close_btn_size = (19, 19)
         self.close_btn_costumes = (pygame.Surface(self.close_btn_size), pygame.Surface(self.close_btn_size), None)
         self.close_btn_colors = (GREY6, RED)
         for index, surf in enumerate(self.close_btn_costumes[:-1]):
@@ -163,9 +163,9 @@ class ToastNotifier(pygame.sprite.Sprite):
 
 
 class ToastGroup(pygame.sprite.Group):
-    def __init__(self, resolution: Tuple[int, int]):
+    def __init__(self, resolution: Tuple[int, int], z_index: int):
         super().__init__()
-        self.z_index = 1
+        self.z_index = z_index
         self.resolution = resolution
         self.toasts = []
         self.padding = 10

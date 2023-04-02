@@ -8,7 +8,7 @@ class Counter(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int]):
         super().__init__()
         self.resolution = resolution
-        self.font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 20)
+        self.font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 25)
         self.frame_timer = Time.Time()
         self.frame_timer.reset_timer()
         self.fps_data = []

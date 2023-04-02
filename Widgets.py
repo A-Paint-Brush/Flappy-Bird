@@ -1450,6 +1450,9 @@ class Slider(BaseWidget):
         new_size = (self.text_height * wh_ratio, self.text_height)
         return new_size
 
+    def set_slider_value(self, value: int) -> None:
+        self.slider_thumb.set_value(value)
+
     def get_slider_value(self) -> int:
         return self.slider_thumb.get_value()
 
@@ -1548,6 +1551,11 @@ class SliderButton(pygame.sprite.Sprite):
         if remainder:
             mid_x = whole * self.px_per_value + (self.px_per_value if remainder > self.px_per_value / 2 else 0)
             self.x = mid_x - self.width / 2
+
+    def set_value(self, value: int) -> None:
+        mid_x = (value - self.min_value) * self.px_per_value
+        self.x = mid_x - self.width / 2
+        self.current_value = value
 
     def get_position(self) -> Tuple[float, float]:
         return self.x, self.y
@@ -1915,9 +1923,12 @@ class Frame(BaseWidget):
             scrolled_rel_mouse = Mouse.Cursor()
             scrolled_rel_mouse.mouse_leave()  # Dummy mouse object to prevent collision.
             keyboard_events = []
-        collide = self.rect.collidepoint(mouse_obj.get_pos())
+        collide = False
         return_values = []
         for widget in self.child_widgets.values():
+            if not collide:
+                collide = bool(pygame.sprite.collide_mask(widget, scrolled_rel_mouse)) if hasattr(widget, "mask")\
+                          else pygame.sprite.collide_rect(widget, scrolled_rel_mouse)
             if isinstance(widget, Entry):
                 value = widget.update(scrolled_rel_mouse, keyboard_events)
                 return_values.append(value)

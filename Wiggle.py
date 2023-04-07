@@ -21,3 +21,10 @@ class Wiggle:
 
     def max_vertical_movement(self) -> int:
         return self.v_shift * 2
+
+    def pause(self) -> None:
+        self.elapsed_time.pause()
+
+    def unpause(self) -> None:
+        if self.elapsed_time.is_paused():
+            self.elapsed_time.unpause()

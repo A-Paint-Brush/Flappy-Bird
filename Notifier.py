@@ -1,6 +1,5 @@
 from os.path import normpath
 from Global import *
-import Physics
 import Mouse
 import Time
 import pygame
@@ -41,9 +40,9 @@ class ToastNotifier(pygame.sprite.Sprite):
                                         self.width - self.corner_radius * 2 - self.icon_img.get_size()[0] -
                                         self.image_padding - self.close_btn_img.get_size()[0],
                                         self.body_font)
-        self.height = self.title_font.size("|")[1] * (len(self.title_text) + 1) + \
-                      self.body_font.size("|")[1] * len(self.body_text) + \
-                      self.corner_radius * 2
+        self.height = (self.title_font.size("|")[1] * (len(self.title_text) + 1)
+                       + self.body_font.size("|")[1] * len(self.body_text)
+                       + self.corner_radius * 2)
         self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
         self.current_color = GREY3
         self.lock = True
@@ -174,7 +173,8 @@ class ToastGroup(pygame.sprite.Group):
 
     def create_toast(self, toast_title: str, toast_text: str) -> None:
         new_toast = ToastNotifier(self.resolution,
-                                  self.padding * (len(self.toasts) + 1) + sum(toast.get_size()[1] for toast in self.toasts),
+                                  (self.padding * (len(self.toasts) + 1)
+                                   + sum(toast.get_size()[1] for toast in self.toasts)),
                                   toast_title,
                                   toast_text,
                                   self.assign_id)

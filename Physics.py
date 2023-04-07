@@ -17,6 +17,13 @@ class PreciseAcceleration:
     def reset_calculation(self) -> None:
         self.time.reset_timer()
 
+    def pause(self) -> None:
+        self.time.pause()
+
+    def unpause(self) -> None:
+        if self.time.is_paused():
+            self.time.unpause()
+
 
 class PreciseDeceleration(PreciseAcceleration):
     def __init__(self, deceleration: Union[int, float], starting_velocity: Union[int, float]):
@@ -26,7 +33,9 @@ class PreciseDeceleration(PreciseAcceleration):
     def calc(self) -> Tuple[float, float]:
         s0 = self.time.get_prev_time()
         s1 = self.time.get_time()
-        return ((-self.acceleration * s1 + self.starting_velocity) + (-self.acceleration * s0 + self.starting_velocity)) * (s1 - s0) * 0.5, self.starting_velocity - self.acceleration * s1
+        return (((-self.acceleration * s1 + self.starting_velocity)
+                + (-self.acceleration * s0 + self.starting_velocity)) * (s1 - s0) * 0.5,
+                self.starting_velocity - self.acceleration * s1)
 
 
 class EulerAcceleration:
@@ -41,6 +50,13 @@ class EulerAcceleration:
         self.time.reset_timer()
         self.speed += self.acceleration * delta_time
         return self.speed * delta_time
+
+    def pause(self) -> None:
+        self.time.pause()
+
+    def unpause(self) -> None:
+        if self.time.is_paused():
+            self.time.unpause()
 
 
 class EulerDeceleration(EulerAcceleration):

@@ -5,7 +5,7 @@ import random
 
 class Rainbow:
     def __init__(self):
-        self.destination_rgb = tuple(random.randint(0, 255) for color in range(3))
+        self.destination_rgb = tuple(random.randint(0, 255) for _ in range(3))
         self.current_rgb = list(self.destination_rgb)
         self.divider_constant = 1
         self.size_diff = []
@@ -21,7 +21,7 @@ class Rainbow:
         time = self.tick_timer.get_time()
         self.tick_timer.reset_timer()
         if self.current_rgb == list(self.destination_rgb):
-            self.destination_rgb = tuple(random.randint(0, 255) for color in range(3))
+            self.destination_rgb = tuple(random.randint(0, 255) for _ in range(3))
             self.size_diff = []
             for color in range(3):
                 if self.current_rgb[color] < self.destination_rgb[color]:
@@ -50,5 +50,5 @@ class Rainbow:
                 if self.current_rgb[color] < self.destination_rgb[color]:
                     self.current_rgb[color] = self.destination_rgb[color]
 
-    def get_color(self) -> List:
+    def get_color(self) -> List[int]:
         return self.current_rgb

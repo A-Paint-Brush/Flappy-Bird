@@ -41,9 +41,11 @@ class MainProc:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        self.special_widgets: Dict[Literal["transition", "settings"],
-                                   List[Union[tuple, Widgets.SceneTransition, Dialogs.Settings],
-                                        Optional[Callable[[], None]]]] = {}
+        self.special_widgets: Dict[
+            Literal["transition", "settings", "pause"],
+            List[Union[Tuple[Any, ...],
+                 Widgets.SceneTransition, Dialogs.Settings, Dialogs.Pause, Callable[[], None], None]]
+        ] = {}
         self.key_events = []
         self.display_frame: Optional[Widgets.Frame] = None  # The widget-frame is rendered below the notifiers.
         self.init_menu_frame()
@@ -63,18 +65,9 @@ class MainProc:
         # region Window Creation
         pygame.display.set_caption("Flappy Bird")
         self.display = pygame.display.set_mode(self.fixed_resolution, pygame.RESIZABLE)
-        self.listen_events = (pygame.QUIT,
-                              pygame.WINDOWFOCUSLOST,
-                              pygame.WINDOWENTER,
-                              pygame.WINDOWLEAVE,
-                              pygame.VIDEORESIZE,
-                              pygame.MOUSEBUTTONDOWN,
-                              pygame.MOUSEBUTTONUP,
-                              pygame.MOUSEWHEEL,
-                              pygame.KEYDOWN,
-                              pygame.KEYUP,
-                              pygame.TEXTINPUT,
-                              pygame.TEXTEDITING)
+        self.listen_events = (pygame.QUIT, pygame.WINDOWFOCUSLOST, pygame.WINDOWENTER, pygame.WINDOWLEAVE,
+                              pygame.VIDEORESIZE, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL,
+                              pygame.KEYDOWN, pygame.KEYUP, pygame.TEXTINPUT, pygame.TEXTEDITING)
         pygame.event.set_blocked(None)
         pygame.event.set_allowed(self.listen_events)
         pygame.key.stop_text_input()
@@ -123,11 +116,13 @@ class MainProc:
                         self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
                         self.check_key_sequence(self.rickroll, event.key, self.toggle_rickroll)
                         # endregion
-                        if event.key == pygame.K_SPACE:
-                            if self.state_data.game_state in ("waiting", "started") and \
-                                    "transition" not in self.special_widgets:
-                                # Jumping the bird is only allowed during "waiting" or "started", not after death.
+                        if self.state_data.game_state in ("waiting", "started") and \
+                                "transition" not in self.special_widgets and \
+                                "pause" not in self.special_widgets:
+                            if event.key == pygame.K_SPACE:
                                 self.bird.click(self.state_data, self.pipe_group, self.mouse_obj, False)
+                            elif event.key == pygame.K_p:
+                                self.schedule_pause_game()
             self.mouse_obj.set_pos(*resize_mouse_pos(pygame.mouse.get_pos(),
                                                      self.fixed_resolution,
                                                      self.current_resolution,
@@ -138,8 +133,9 @@ class MainProc:
                 self.special_widgets["transition"][0] = Widgets.SceneTransition(*self.special_widgets["transition"][0])
             elif "settings" in self.special_widgets and isinstance(self.special_widgets["settings"][0], tuple):
                 self.special_widgets["settings"][0] = Dialogs.Settings(*self.special_widgets["settings"][0])
-            if "transition" in self.special_widgets and isinstance(self.special_widgets["transition"][0],
-                                                                   Widgets.SceneTransition):
+            elif "pause" in self.special_widgets and isinstance(self.special_widgets["pause"][0], tuple):
+                self.special_widgets["pause"][0] = Dialogs.Pause(*self.special_widgets["pause"][0])
+            if "transition" in self.special_widgets:
                 return_code = self.special_widgets["transition"][0].update()
                 if return_code == 1:
                     self.special_widgets["transition"][1]()
@@ -149,27 +145,40 @@ class MainProc:
                 self.mouse_obj.increment_z_index()
             # The z-index will not be increased if the mouse touches any toasts.
             self.notifiers.send_mouse_pos(self.mouse_obj)
-            if "settings" in self.special_widgets and isinstance(self.special_widgets["settings"][0],
-                                                                 Dialogs.Settings):
-                return_code = self.special_widgets["settings"][0].update(self.mouse_obj, self.key_events)
-                new_volume = self.special_widgets["settings"][0].get_volume()
+            key: Literal["settings", "pause", None] = None
+            if "settings" in self.special_widgets:
+                key = "settings"
+            elif "pause" in self.special_widgets:
+                key = "pause"
+            else:
+                self.mouse_obj.increment_z_index()
+            if key is not None:
+                return_code = self.special_widgets[key][0].update(self.mouse_obj, self.key_events)
+                new_volume = self.special_widgets[key][0].get_volume()
                 if new_volume != self.volume:
                     self.volume = new_volume
                     volume_float = self.volume / 100
                     for sound in self.audio_objects.values():
                         sound.set_volume(volume_float)
                 if return_code:
-                    self.special_widgets.pop("settings")
-            else:
+                    self.special_widgets.pop(key)
+                    if key == "pause":
+                        self.unpause_game()
+            if self.display_frame is None:
                 self.mouse_obj.increment_z_index()
-            # The mouse will only be able to interact with the widgets if it did not touch any toasts.
-            self.display_frame.update(self.mouse_obj, self.key_events)
-            if self.state_data.game_state == "menu":
-                self.tiles_group.move()
-                self.tiles_group.reset_pos()
-            elif self.state_data.game_state in ("waiting", "started", "dying"):
-                self.bird.click(self.state_data, self.pipe_group, self.mouse_obj, True)
-                self.bird.update(self.tiles_group, self.pipe_group, self.state_data)
+            else:
+                if self.state_data.game_state in ("menu", "waiting", "started"):
+                    # The mouse will only be able to interact with the widgets if it did not touch any toasts.
+                    self.display_frame.update(self.mouse_obj, self.key_events)
+                else:
+                    self.display_frame = None
+            if "pause" not in self.special_widgets:
+                if self.state_data.game_state == "menu":
+                    self.tiles_group.move()
+                    self.tiles_group.reset_pos()
+                elif self.state_data.game_state in ("waiting", "started", "dying"):
+                    self.bird.click(self.state_data, self.pipe_group, self.mouse_obj, True)
+                    self.bird.update(self.tiles_group, self.pipe_group, self.state_data)
             if self.rainbow_mode:
                 self.rainbow.tick()
             self.fps_counter.tick()
@@ -187,10 +196,13 @@ class MainProc:
                 self.bird.draw_(self.display_surface, self.debug)  # For debug mode support.
             if self.debug:
                 self.fps_counter.draw(self.display_surface)
-            self.display_surface.blit(self.display_frame.image, self.display_frame.rect)
+            if self.display_frame is not None:
+                self.display_surface.blit(self.display_frame.image, self.display_frame.rect)
             if "settings" in self.special_widgets and isinstance(self.special_widgets["settings"][0],
                                                                  Dialogs.Settings):
                 self.special_widgets["settings"][0].draw()
+            elif "pause" in self.special_widgets and isinstance(self.special_widgets["pause"][0], Dialogs.Pause):
+                self.special_widgets["pause"][0].draw()
             self.notifiers.draw(self.display_surface)  # Draws nothing if empty.
             if "transition" in self.special_widgets and isinstance(self.special_widgets["transition"][0],
                                                                    Widgets.SceneTransition):
@@ -206,76 +218,74 @@ class MainProc:
         pygame.quit()
 
     def init_menu_frame(self) -> None:
+        if "pause" in self.special_widgets:
+            self.unpause_game()
+            self.special_widgets.pop("pause")
+            self.reset_unusable_objects()
+        self.state_data.game_state = "menu"
         font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
         # region Vertical Buttons
         widget_labels = ["Start Game", "How to Play", "Achievements"]
         widget_sizes = [(260, 69), (280, 69), (300, 69)]
-        widget_data = []
-        widget_callbacks = [self.schedule_start_game, lambda: None, lambda: None]
-        for size in widget_sizes:
-            size = list(Widgets.Button.calc_size(0, size[0], size[1]))
-            size[0] = abs(size[0])
-            size[1] += size[0]
-            widget_data.append(size)
+        widget_callbacks = [self.schedule_toggle_round, lambda: None, lambda: None]
         padding = 10
-        total_height = sum(size[1] for size in widget_data) + (len(widget_data) - 1) * padding
-        start_y = self.fixed_resolution[1] / 2 - total_height / 2
-        offset_y = 0
-        button_id = 1
-        for index in range(len(widget_labels)):
-            self.display_frame.add_widget(
-                Widgets.Button(self.fixed_resolution[0] / 2 - widget_sizes[index][0] / 2,
-                               start_y + offset_y + widget_data[index][0], widget_sizes[index][0],
-                               widget_sizes[index][1], 1, BLACK, ORANGE, font, widget_labels[index],
-                               widget_callbacks[index], widget_name="!button{}".format(button_id))
-            )
-            offset_y += widget_data[index][1] + padding
-            button_id += 1
+        Dialogs.v_pack_buttons(self.fixed_resolution, self.display_frame, widget_labels, widget_sizes,
+                               widget_callbacks, font, padding)
         # endregion
         # region Horizontal Buttons
-        button_id = 1
         widen_amount = 20
         widget_surfaces = [pygame.Surface((65, 65)), pygame.Surface((65, 65))]
         widget_callbacks = [self.schedule_launch_settings, self.toggle_full_screen]
-        widget_data = []
-        for surf in widget_surfaces:
-            size = list(Widgets.Button.calc_size(0, *surf.get_size(), widen_amount=widen_amount))
-            size[0] = abs(size[0])
-            size[1] += size[0]
-            widget_data.append(size)
-        total_width = (sum(surface.get_width() + widen_amount for surface in widget_surfaces)
-                       + (len(widget_surfaces) - 1) * padding)
-        max_height = max(size[1] for size in widget_data)
-        start_x = self.fixed_resolution[0] - padding - total_width
-        offset_x = 0
-        for index in range(len(widget_surfaces)):
-            self.display_frame.add_widget(
-                Widgets.AnimatedSurface(start_x + offset_x + widen_amount / 2,
-                                        (self.fixed_resolution[1] - padding - max_height
-                                         + (max_height / 2 - widget_data[index][1] / 2) + widget_data[index][0]),
-                                        widget_surfaces[index], widget_callbacks[index], widen_amount=widen_amount,
-                                        widget_name="!animated_surf{}".format(button_id))
-            )
-            offset_x += widget_surfaces[index].get_width() + widen_amount + padding
-            button_id += 1
+        Dialogs.h_pack_buttons_se(self.fixed_resolution, self.display_frame, widget_surfaces, widget_callbacks,
+                                  padding, widen_amount)
         # endregion
 
-    def schedule_start_game(self) -> None:
+    def reset_unusable_objects(self) -> None:
+        self.bird = Bird.BirdManager(self.fixed_resolution, 5)
+        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
+
+    def schedule_toggle_round(self) -> None:
         if "transition" not in self.special_widgets:
             self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
-                                                  self.init_game]
+                                                  self.init_game_frame if self.state_data.game_state == "menu"
+                                                  else self.init_menu_frame]
 
     def schedule_launch_settings(self) -> None:
         if "settings" not in self.special_widgets:
             widget_size = (375, 250)
             padding = 20
             self.special_widgets["settings"] = [(self.display_surface, self.fixed_resolution, widget_size, 19, 19, 10,
-                                                 4, 0.05, widget_size[0] - 2 * padding, self.volume, 3), None]
+                                                 4, 0.05, widget_size[0] - 2 * padding, self.volume, 3)]
 
-    def init_game(self) -> None:
+    def schedule_pause_game(self) -> None:
+        if "pause" not in self.special_widgets and self.state_data.game_state in ("waiting", "started"):
+            widget_size = (375, 250)
+            padding = 20
+            self.special_widgets["pause"] = [(self.display_surface, self.fixed_resolution, widget_size, 19, 19, 10, 4,
+                                              0.05, widget_size[0] - 2 * padding, self.volume,
+                                              [self.schedule_toggle_round, self.toggle_full_screen], 3)]
+            self.pause_game()
+
+    def pause_game(self) -> None:
+        self.bird.pause()
+        self.tiles_group.pause()
+        self.pipe_group.pause_flash()
+
+    def unpause_game(self) -> None:
+        self.bird.unpause()
+        self.tiles_group.unpause()
+        self.pipe_group.unpause_flash()
+
+    def init_game_frame(self) -> None:
         if self.state_data.game_state == "menu":
             self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
+            padding = 10
+            widen_amount = 20
+            widget_surfaces = [pygame.Surface((65, 65))]
+            widget_callbacks = [self.schedule_pause_game]
+            Dialogs.h_pack_buttons_se(self.fixed_resolution, self.display_frame, widget_surfaces, widget_callbacks,
+                                      padding, widen_amount)
             self.bird.spawn_bird(self.state_data, self.tiles_group)
 
     def key_generator(self, string: str) -> Tuple[int]:

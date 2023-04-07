@@ -66,3 +66,10 @@ class GroundGroup(pygame.sprite.Group):
         # if x < 0: x = -(|x| % width)
         if self.ground_object.get_pos()[0] < 0:
             self.ground_object.set_x(-(abs(self.ground_object.get_pos()[0]) % self.ground_object.get_tile_size()[0]))
+
+    def pause(self) -> None:
+        self.frame_timer.pause()
+
+    def unpause(self) -> None:
+        if self.frame_timer.is_paused():
+            self.frame_timer.unpause()

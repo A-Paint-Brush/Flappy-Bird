@@ -21,7 +21,8 @@ class Pipe(pygame.sprite.Sprite):
         # Y position of top pipe: bottom_pipe_y - constant
         self.gap_distance = 145  # Production distance: 145, Debug distance: 400
         self.min_length = 66
-        self.bottom_pipe_pos = (0, random.randint(self.min_length + self.gap_distance, self.resolution[1] - self.min_length))
+        self.bottom_pipe_pos = (0, random.randint(self.min_length + self.gap_distance,
+                                                  self.resolution[1] - self.min_length))
         self.top_pipe_pos = (0, self.bottom_pipe_pos[1] - self.gap_distance - self.height)
         self.image = pygame.Surface((self.width, self.resolution[1]))
         # Uses the RLEACCEL flag to improve the blit performance, since the surface is only modified on creation.
@@ -60,6 +61,13 @@ class Pipe(pygame.sprite.Sprite):
         self.image.fill((self.brightness,) * 3, special_flags=pygame.BLEND_RGB_ADD)
         return self.brightness == 0
 
+    def flash_pause(self) -> None:
+        self.flash_timer.pause()
+
+    def flash_unpause(self) -> None:
+        if self.flash_timer.is_paused():
+            self.flash_timer.unpause()
+
     def check_collision(self) -> bool:
         if self.x < -self.width:
             self.kill()
@@ -83,7 +91,7 @@ class PipeGroup(pygame.sprite.Group):
         self.sprite_objects = []
         self.pipe_distance = 213
         self.collide_init = False
-        self.flash_pipe = None  # Stores the pipe object that has to be flashed.
+        self.flash_pipe: Optional[Pipe] = None  # Stores the pipe object that has to be flashed.
 
     def set_flash_pipe(self, pipe_obj: Pipe) -> None:
         self.flash_pipe = pipe_obj
@@ -92,9 +100,21 @@ class PipeGroup(pygame.sprite.Group):
         if self.flash_pipe is not None:
             self.flash_pipe.flash_tick()
 
+    def pause_flash(self) -> None:
+        if self.flash_pipe is not None:
+            self.flash_pipe.flash_pause()
+
+    def unpause_flash(self) -> None:
+        if self.flash_pipe is not None:
+            self.flash_pipe.flash_unpause()
+
     def generate(self) -> None:
         if self.collide_init:
-            self.sprite_objects = [Pipe(x, self.resolution, self.ground_size) for x in range(self.resolution[0], -self.temp.get_size()[0], -(self.temp.get_size()[0] + self.pipe_distance))]
+            self.sprite_objects = [
+                Pipe(x, self.resolution, self.ground_size) for x in range(self.resolution[0], -self.temp.get_size()[0],
+                                                                          -(self.temp.get_size()[0]
+                                                                            + self.pipe_distance))
+            ]
             self.add(self.sprite_objects)
         else:
             self.sprite_objects.append(Pipe(self.resolution[0], self.resolution, self.ground_size))
@@ -130,7 +150,9 @@ class PipeGroup(pygame.sprite.Group):
             self.generate()
             return None
         while self.sprite_objects[0].get_pos()[0] < self.resolution[0] - self.temp.get_size()[0] - self.pipe_distance:
-            self.sprite_objects.insert(0, Pipe(self.sprite_objects[0].get_pos()[0] + self.temp.get_size()[0] + self.pipe_distance, self.resolution, self.ground_size))
+            self.sprite_objects.insert(0, Pipe(self.sprite_objects[0].get_pos()[0]
+                                               + self.temp.get_size()[0]
+                                               + self.pipe_distance, self.resolution, self.ground_size))
             self.add(self.sprite_objects[0])
 
     def draw_hit_box(self, surface: pygame.Surface) -> None:

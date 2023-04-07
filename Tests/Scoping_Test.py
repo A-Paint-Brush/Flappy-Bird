@@ -24,7 +24,8 @@ class AltAltScope:
     def __init__(self):
         pass
 
-    def exec_func(self, func_ref):
+    @staticmethod
+    def exec_func(func_ref):
         func_ref()
 
 

@@ -89,7 +89,8 @@ class Bird:
         pygame.draw.rect(surface, BLACK, self.rect, 1)
 
     def draw_mask(self, surface):
-        self.mask.to_surface(surface, setcolor=YELLOW, unsetcolor=BLACK, dest=(self.resolution[0] / 2 - self.rect.width, self.y))
+        self.mask.to_surface(surface, setcolor=YELLOW, unsetcolor=BLACK,
+                             dest=(self.resolution[0] / 2 - self.rect.width, self.y))
 
 
 if __name__ == "__main__":

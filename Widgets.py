@@ -1403,20 +1403,15 @@ class Slider(BaseWidget):
 
     def render_surface(self) -> None:
         self.image.fill((0, 0, 0, 0))
-        # Draw a line from 0 to the slider thumb's mid-point.
-        pygame.draw.rect(self.image,
-                         self.active_line_color,
-                         (self.thumb_width / 2,
-                          self.height / 2 - self.line_thickness / 2,
-                          self.slider_thumb.get_position()[0] + self.thumb_width / 2,
-                          self.line_thickness))
+        # Draw a line from the beginning to the slider thumb's mid-point.
+        pygame.draw.line(self.image, self.active_line_color,
+                         (self.thumb_width / 2, self.height / 2),
+                         (self.thumb_width + self.slider_thumb.get_position()[0], self.height / 2),
+                         width=self.line_thickness)
         # Draw a line from the slider thumb's mid-point to the end of the slider.
-        pygame.draw.rect(self.image,
-                         self.dormant_line_color,
-                         (self.thumb_width + self.slider_thumb.get_position()[0],
-                          self.height / 2 - self.line_thickness / 2,
-                          self.line_length - (self.slider_thumb.get_position()[0] + self.thumb_width / 2),
-                          self.line_thickness))
+        pygame.draw.line(self.image, self.dormant_line_color,
+                         (self.thumb_width + self.slider_thumb.get_position()[0], self.height / 2),
+                         (self.thumb_width / 2 + self.line_length, self.height / 2), width=self.line_thickness)
         if self.gauge_height > 0:
             for x in range(0, self.slider_thumb.value_distance + 1):
                 # The lines are slightly inaccurate at large ranges due to float imprecision...
@@ -2023,7 +2018,7 @@ class Window(pygame.sprite.Sprite):
         self.width = border_radius * 2 + self.content_frame.width
         self.height = border_radius * 2 + button_length + button_padding + self.content_frame.height
         self.distance = self.start_y - self.final_y
-        self.direction = "u"  # Possible values are "(u)p", "(d)own", "(i)dle", and "(r)eturn".
+        self.direction: Literal["u", "d", "i", "r"] = "u"
         self.bg = bg
         self.destination_surf = destination_surf
         self.z_index = z_index

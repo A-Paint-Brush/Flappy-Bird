@@ -15,7 +15,8 @@ class Bird(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__()
         # region Costume Data
-        self.costumes = tuple(pygame.image.load(normpath("./Images/Sprites/{}".format(file))).convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
+        self.costumes = tuple(pygame.image.load(normpath("./Images/Sprites/{}".format(file)))
+                              .convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
         self.image = self.costumes[0]
         self.costume_index = 0
         self.costume_dir = 1
@@ -27,9 +28,9 @@ class Bird(pygame.sprite.Sprite):
         self.x = 70
         self.y = 200
         self.gravity_speed = 1200
-        self.physics = Wiggle.Wiggle()
+        self.physics: Union[Physics.PreciseAcceleration, Physics.PreciseDeceleration, Wiggle.Wiggle] = Wiggle.Wiggle()
         self.vertical_span = round((resolution[1] - ground_size[1]) / 2 - self.physics.max_vertical_movement() / 2)
-        self.direction = "down"
+        self.direction: Literal["up", "down"] = "down"
         self.jump_speed = 370
         # endregion
         self.rect = pygame.Rect(self.x, self.y, *self.image.get_size())
@@ -68,7 +69,7 @@ class Bird(pygame.sprite.Sprite):
             else:
                 total_movement = movement[0]
                 speed = movement[1]
-        elif self.direction == "up":
+        else:
             movement = self.physics.calc()
             if movement[1] < 0:
                 total_movement = 0
@@ -80,7 +81,8 @@ class Bird(pygame.sprite.Sprite):
                 speed = movement[1]
         return speed, total_movement
 
-    def move_collide(self, amount: Union[int, float], pipe_group: Pipe.PipeGroup, collide: bool) -> Union[Tuple[bool, Union[None, pygame.sprite.Sprite]], None]:
+    def move_collide(self, amount: Union[int, float], pipe_group: Optional[Pipe.PipeGroup],
+                     collide: bool) -> Union[Tuple[bool, Union[None, pygame.sprite.Sprite]], None]:
         if not collide:
             self.update_y_pos(amount)
             return None
@@ -110,7 +112,8 @@ class Bird(pygame.sprite.Sprite):
         self.direction = "up"
         self.physics = Physics.PreciseDeceleration(self.gravity_speed, self.jump_speed)
 
-    def calc_angle(self, speed: Union[int, float], pipe_group: Pipe.PipeGroup, collide: bool) -> Union[Tuple[bool, Union[pygame.sprite.Sprite, None]], None]:
+    def calc_angle(self, speed: Union[int, float], pipe_group: Optional[Pipe.PipeGroup],
+                   collide: bool) -> Union[Tuple[bool, Union[pygame.sprite.Sprite, None]], None]:
         # x = a' + {(b'-a')/[(b-a)/(c-a)]}
         if speed == 0:
             angle = 0
@@ -119,7 +122,7 @@ class Bird(pygame.sprite.Sprite):
                 # Speed Range: self.jump_speed ~ 1
                 # Angle: -(315 ~ 360)
                 angle = 315 + ((360 - 315) / ((1 - self.jump_speed) / ((speed - self.jump_speed) or 1)))
-            elif self.direction == "down":
+            else:
                 # Speed Range: 1 ~ self.gravity_speed
                 # angle: -(0~90)
                 angle = 0 + ((90 - 0) / (((self.gravity_speed - 1) or 1) / (speed - 1)))
@@ -133,7 +136,7 @@ class Bird(pygame.sprite.Sprite):
             self.set_angle(-prev_angle)
             result = pygame.sprite.spritecollideany(self, pipe_group, collided=collide_function)
             if result is not None:
-                prev_angle += (1 if prev_angle > angle else -1)  # Rotate in the opposite direction for 1 degree if colliding.
+                prev_angle += (1 if prev_angle > angle else -1)  # Rotate in the opposite direction for 1° if colliding.
                 self.set_angle(-prev_angle)
                 return True, result
         return False, None
@@ -177,6 +180,15 @@ class Bird(pygame.sprite.Sprite):
                 self.image = self.costumes[self.costume_index]
                 self.mask = pygame.mask.from_surface(self.image)
 
+    def pause(self) -> None:
+        self.costume_timer.pause()
+        self.physics.pause()
+
+    def unpause(self) -> None:
+        if self.costume_timer.is_paused():
+            self.costume_timer.unpause()
+            self.physics.unpause()
+
     def collision_detection(self, ground_pos: Tuple[Union[int, float], Union[int, float]]) -> Literal[0, 1, 2]:
         """
         Returns an int according to the current collision status.
@@ -209,7 +221,7 @@ class BirdManager(pygame.sprite.Group):
         super().__init__()
         self.resolution = resolution
         self.spawned = False
-        self.bird_object = None
+        self.bird_object: Optional[Bird] = None
         self.clicked = False
         self.z_index = z_index
 
@@ -291,6 +303,14 @@ class BirdManager(pygame.sprite.Group):
         if ground_collide == 1:
             return 4, None
         return 0, None
+
+    def pause(self) -> None:
+        if self.bird_object is not None:
+            self.bird_object.pause()
+
+    def unpause(self) -> None:
+        if self.bird_object is not None:
+            self.bird_object.unpause()
 
     @staticmethod
     def move_ground_tiles(ground_group: Ground.GroundGroup) -> Union[int, float]:

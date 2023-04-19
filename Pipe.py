@@ -1,9 +1,12 @@
 from os.path import normpath
 from Global import *
+import Counters
+import Time
 import math
 import random
 import pygame
-import Time
+if TYPE_CHECKING:
+    import Bird
 
 
 class Pipe(pygame.sprite.Sprite):
@@ -15,17 +18,14 @@ class Pipe(pygame.sprite.Sprite):
         self.resolution[1] -= ground_size[1]
         self.x = x_pos
         self.y = 0
-        # The shortest pipe length allowed: 86
-        # Minimum value of bottom pipe y position: y = min_length + constant (constant > bird_height)
-        # Maximum value of bottom pipe y position: y = resolution[1] - min_length
-        # Y position of top pipe: bottom_pipe_y - constant
-        self.gap_distance = 145  # Production distance: 145, Debug distance: 400
+        self.gap_distance = 145
         self.min_length = 66
         self.bottom_pipe_pos = (0, random.randint(self.min_length + self.gap_distance,
                                                   self.resolution[1] - self.min_length))
         self.top_pipe_pos = (0, self.bottom_pipe_pos[1] - self.gap_distance - self.height)
+        self.bird_passed = False
         self.image = pygame.Surface((self.width, self.resolution[1]))
-        # Uses the RLEACCEL flag to improve the blit performance, since the surface is only modified on creation.
+        # Use the RLEACCEL flag to improve blit performance, since the surface is only modified on creation.
         self.image.set_colorkey(TRANSPARENT, pygame.RLEACCEL)
         self.image.fill(TRANSPARENT)
         self.image.blit(self.pipe_image, self.bottom_pipe_pos)
@@ -75,6 +75,15 @@ class Pipe(pygame.sprite.Sprite):
         else:
             return False
 
+    def check_passed(self, bird: "Bird.Bird") -> bool:
+        if self.bird_passed:
+            return False
+        pipe_mid = self.x + self.width / 2
+        bird_mid = bird.x + bird.get_rect().width / 2
+        if pipe_mid <= bird_mid:
+            self.bird_passed = True
+            return True
+
     def get_size(self) -> Tuple[int, int]:
         return self.width, self.height
 
@@ -83,17 +92,22 @@ class Pipe(pygame.sprite.Sprite):
 
 
 class PipeGroup(pygame.sprite.Group):
-    def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
+    def __init__(self,
+                 resolution: Tuple[int, int],
+                 ground_size: Tuple[int, int],
+                 font_height: int = 70,
+                 kerning: int = 5):
         super().__init__()
         self.resolution = resolution
         self.ground_size = ground_size
         self.temp = Pipe(-1, resolution, self.ground_size)
-        self.sprite_objects = []
+        self.score = Counters.Score(font_height, kerning)
+        self.sprite_objects: List[Pipe] = []
         self.pipe_distance = 213
         self.collide_init = False
         self.flash_pipe: Optional[Pipe] = None  # Stores the pipe object that has to be flashed.
 
-    def set_flash_pipe(self, pipe_obj: Pipe) -> None:
+    def set_flash_pipe(self, pipe_obj: pygame.sprite.Sprite) -> None:
         self.flash_pipe = pipe_obj
 
     def update_flash_pipe(self) -> None:
@@ -120,27 +134,32 @@ class PipeGroup(pygame.sprite.Group):
             self.sprite_objects.append(Pipe(self.resolution[0], self.resolution, self.ground_size))
             self.add(self.sprite_objects[-1])
 
-    def move(self, distance: float = None,
-             bird: pygame.sprite.Sprite = None) -> Tuple[bool, Union[pygame.sprite.Sprite, None]]:
-        # The value must be converted to positive first, because floor() works differently on negative values.
-        whole_steps = math.floor(abs(distance))  # Break the number into an integer and a float
-        float_remainder = abs(distance) - whole_steps
-        for step in range(whole_steps):
-            # Repeat (integer amount) of times, 1 pixel at a time.
-            # This ensures the pipe won't move a large amount of pixels in one frame when at a very low frame-rate,
-            # and skip over the bird entirely without the collision detection catching it.
-            self.update(-1)  # Move back one pixel if colliding.
+    def move(self, distance: float, bird: "Bird.Bird") -> Optional[pygame.sprite.Sprite]:
+        pipe_width = self.temp.get_size()[0]
+        shift_count, remainder = divmod(abs(distance), pipe_width)
+        shift_count = math.floor(shift_count)
+        shift_amount = math.copysign(pipe_width, distance)
+        remainder = math.copysign(remainder, distance)
+        for i in range(shift_count + 1):
+            temp_amount = remainder if i == shift_count else shift_amount
+            if temp_amount == 0:
+                continue
+            self.update(temp_amount)
             result = pygame.sprite.spritecollideany(bird, self, collided=collide_function)
             if result is not None:
-                self.update(1)
-                return True, result
-        self.update(-float_remainder)  # Whatever is left will be less than one, so it can be safely added in one frame.
-        result = pygame.sprite.spritecollideany(bird, self, collided=collide_function)
-        if result is None:
-            return False, None
-        else:
-            self.update(1)
-            return True, result
+                opposite_amount = -math.copysign(1, temp_amount)
+                collided = 0
+                while collided is not None:
+                    self.update(opposite_amount)
+                    collided = pygame.sprite.spritecollideany(bird, self, collided=collide_function)
+                return result
+        self.check_score(bird)
+
+    def check_score(self, bird: "Bird.Bird") -> None:
+        for pipe in self.sprite_objects:
+            if pipe.check_passed(bird):
+                self.score.change_score(1, "change")
+                break
 
     def kill_colliding(self) -> None:
         if not self.collide_init:
@@ -158,3 +177,6 @@ class PipeGroup(pygame.sprite.Group):
     def draw_hit_box(self, surface: pygame.Surface) -> None:
         for pipe in self.sprite_objects:
             pygame.draw.rect(surface, BLACK, pipe.rect, 1)
+
+    def get_score_obj(self) -> Counters.Score:
+        return self.score

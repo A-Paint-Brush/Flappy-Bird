@@ -1,5 +1,5 @@
-from typing import *
 from ctypes import windll
+from typing import *
 import platform
 import pygame.transform
 import pygame.colordict
@@ -131,7 +131,7 @@ def draw_cross(surface: pygame.Surface,
         pygame.draw.line(surface, color, line[0], line[1], width=width)
 
 
-def word_wrap_text(string: str, width: int, font: pygame.font.Font, br: str = "-") -> list[str]:
+def word_wrap_text(string: str, width: int, font: pygame.font.Font, br: str = "-") -> List[str]:
     lines, break_locations = [[]], []
     for index, char in enumerate(string):
         if char == " ":

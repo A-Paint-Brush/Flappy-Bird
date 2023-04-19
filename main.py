@@ -1,6 +1,5 @@
 from os.path import normpath
 from Global import *
-from dataclasses import *
 import Mouse
 import Widgets
 import Dialogs
@@ -11,11 +10,11 @@ import Rainbow
 import Keyboard
 import Notifier
 import Achievements
-import FPS
+import Counters
 import pygame
 
 
-class MainProc:
+class MainThread:
     def __init__(self):
         pygame.init()
         # region Display Data
@@ -26,7 +25,7 @@ class MainProc:
         self.monitor_resolution = (self.monitor_info.current_w, self.monitor_info.current_h)
         # endregion
         # region State Variables
-        self.state_data = StateManager("game", "menu")
+        self.game_state = "menu"
         self.game_run = True
         self.debug = False
         self.rainbow_mode = False
@@ -77,11 +76,14 @@ class MainProc:
         self.mouse_obj = Mouse.Cursor()
         self.bird = Bird.BirdManager(self.fixed_resolution, 5)
         self.tiles_group = Ground.GroundGroup(self.fixed_resolution)
-        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
+        self.font_height = 50
+        self.kerning = 5
+        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
+                                         self.kerning)
         self.notifiers = Notifier.ToastGroup(self.fixed_resolution, 2)
         self.achievement_list = Achievements.Storage()
         self.rainbow = Rainbow.Rainbow()
-        self.fps_counter = FPS.Counter(self.fixed_resolution)
+        self.fps_counter = Counters.FPS(self.fixed_resolution)
         # endregion
         # region Timing Control
         self.fps = 60
@@ -116,11 +118,12 @@ class MainProc:
                         self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
                         self.check_key_sequence(self.rickroll, event.key, self.toggle_rickroll)
                         # endregion
-                        if self.state_data.game_state in ("waiting", "started") and \
+                        if self.game_state in ("waiting", "started") and \
                                 "transition" not in self.special_widgets and \
                                 "pause" not in self.special_widgets:
                             if event.key == pygame.K_SPACE:
-                                self.bird.click(self.state_data, self.pipe_group, self.mouse_obj, False)
+                                self.bird.process_user_events(self.access_game_state, self.pipe_group, self.mouse_obj,
+                                                              False)
                             elif event.key == pygame.K_p:
                                 self.schedule_pause_game()
             self.mouse_obj.set_pos(*resize_mouse_pos(pygame.mouse.get_pos(),
@@ -167,18 +170,15 @@ class MainProc:
             if self.display_frame is None:
                 self.mouse_obj.increment_z_index()
             else:
-                if self.state_data.game_state in ("menu", "waiting", "started"):
-                    # The mouse will only be able to interact with the widgets if it did not touch any toasts.
-                    self.display_frame.update(self.mouse_obj, self.key_events)
-                else:
-                    self.display_frame = None
+                # The mouse will only be able to interact with the widgets if it did not touch any toasts.
+                self.display_frame.update(self.mouse_obj, self.key_events)
             if "pause" not in self.special_widgets:
-                if self.state_data.game_state == "menu":
+                if self.game_state == "menu":
                     self.tiles_group.move()
                     self.tiles_group.reset_pos()
-                elif self.state_data.game_state in ("waiting", "started", "dying"):
-                    self.bird.click(self.state_data, self.pipe_group, self.mouse_obj, True)
-                    self.bird.update(self.tiles_group, self.pipe_group, self.state_data)
+                elif self.game_state in ("waiting", "started", "dying"):
+                    self.bird.process_user_events(self.access_game_state, self.pipe_group, self.mouse_obj, True)
+                    self.bird.update(self.tiles_group, self.pipe_group, self.access_game_state, self.init_dying_frame)
             if self.rainbow_mode:
                 self.rainbow.tick()
             self.fps_counter.tick()
@@ -188,12 +188,15 @@ class MainProc:
             self.display_surface.fill(BLACK)
             self.display_surface.blit(self.background, (0, 0))
             self.tiles_group.draw(self.display_surface)
-            if self.state_data.game_state in ("started", "dying"):
+            if self.game_state in ("started", "dying"):
                 self.pipe_group.draw(self.display_surface)
                 if self.debug:
                     self.pipe_group.draw_hit_box(self.display_surface)
-            if self.state_data.game_state in ("waiting", "started", "dying"):
-                self.bird.draw_(self.display_surface, self.debug)  # For debug mode support.
+            if self.game_state in ("waiting", "started", "dying"):
+                self.bird.advanced_draw(self.display_surface, self.debug)  # For debug mode support.
+                score_obj = self.pipe_group.get_score_obj()
+                size = score_obj.calc_size()
+                score_obj.draw(self.display_surface, (self.fixed_resolution[0] / 2 - size[0] / 2, 20))
             if self.debug:
                 self.fps_counter.draw(self.display_surface)
             if self.display_frame is not None:
@@ -217,12 +220,18 @@ class MainProc:
             pygame.display.update()
         pygame.quit()
 
+    def access_game_state(self, new_state: Optional[str] = None) -> Optional[str]:
+        if new_state is None:
+            return self.game_state
+        else:
+            self.game_state = new_state
+
     def init_menu_frame(self) -> None:
         if "pause" in self.special_widgets:
             self.unpause_game()
             self.special_widgets.pop("pause")
             self.reset_unusable_objects()
-        self.state_data.game_state = "menu"
+        self.game_state = "menu"
         font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
         # region Vertical Buttons
@@ -241,14 +250,30 @@ class MainProc:
                                   padding, widen_amount)
         # endregion
 
+    def init_game_frame(self) -> None:
+        if self.game_state == "menu":
+            self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
+            padding = 10
+            widen_amount = 20
+            widget_surfaces = [pygame.Surface((65, 65))]
+            widget_callbacks = [self.schedule_pause_game]
+            Dialogs.h_pack_buttons_se(self.fixed_resolution, self.display_frame, widget_surfaces, widget_callbacks,
+                                      padding, widen_amount)
+            self.bird.spawn_bird(self.access_game_state, self.tiles_group)
+
+    def init_dying_frame(self) -> None:
+        if self.game_state == "dying":
+            self.display_frame = None
+
     def reset_unusable_objects(self) -> None:
         self.bird = Bird.BirdManager(self.fixed_resolution, 5)
-        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size())
+        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
+                                         self.kerning)
 
     def schedule_toggle_round(self) -> None:
         if "transition" not in self.special_widgets:
             self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
-                                                  self.init_game_frame if self.state_data.game_state == "menu"
+                                                  self.init_game_frame if self.game_state == "menu"
                                                   else self.init_menu_frame]
 
     def schedule_launch_settings(self) -> None:
@@ -259,7 +284,7 @@ class MainProc:
                                                  4, 0.05, widget_size[0] - 2 * padding, self.volume, 3)]
 
     def schedule_pause_game(self) -> None:
-        if "pause" not in self.special_widgets and self.state_data.game_state in ("waiting", "started"):
+        if "pause" not in self.special_widgets and self.game_state in ("waiting", "started"):
             widget_size = (375, 250)
             padding = 20
             self.special_widgets["pause"] = [(self.display_surface, self.fixed_resolution, widget_size, 19, 19, 10, 4,
@@ -276,17 +301,6 @@ class MainProc:
         self.bird.unpause()
         self.tiles_group.unpause()
         self.pipe_group.unpause_flash()
-
-    def init_game_frame(self) -> None:
-        if self.state_data.game_state == "menu":
-            self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
-            padding = 10
-            widen_amount = 20
-            widget_surfaces = [pygame.Surface((65, 65))]
-            widget_callbacks = [self.schedule_pause_game]
-            Dialogs.h_pack_buttons_se(self.fixed_resolution, self.display_frame, widget_surfaces, widget_callbacks,
-                                      padding, widen_amount)
-            self.bird.spawn_bird(self.state_data, self.tiles_group)
 
     def key_generator(self, string: str) -> Tuple[int]:
         return tuple(self.key_table[char] for char in string)
@@ -347,16 +361,10 @@ class MainProc:
             self.display = pygame.display.set_mode(self.current_resolution, pygame.FULLSCREEN)
 
 
-@dataclass
-class StateManager:
-    screen: str
-    game_state: str
-
-
 if __name__ == "__main__":
     if pygame.version.vernum >= (2, 0, 1):
         configure_dpi()
-        MainProc()
+        MainThread()
     else:
         print("This game requires Pygame version 2.0.1 or higher to run. Consider updating your version of Pygame "
               "with the command: 'python -m pip install --upgrade pygame'")

@@ -4,43 +4,42 @@ import pygame
 
 class CursorIcons:
     def __init__(self):
-        # Tuple[Union[int, Tuple[Tuple[int, int], Tuple[str, ...]]], ...]
-        self.cursor_data = (pygame.SYSTEM_CURSOR_ARROW,
-                            pygame.SYSTEM_CURSOR_IBEAM,
-                            ((0, 0),
-                             ("XX                      ",
-                              "X.X                     ",
-                              "X..X                    ",
-                              "X...X                   ",
-                              "X....X                  ",
-                              "X.....X                 ",
-                              "X......X                ",
-                              "X.......X               ",
-                              "X........X              ",
-                              "X.........X             ",
-                              "X......XXXXX            ",
-                              "X...X..X                ",
-                              "X..XX..X                ",
-                              "X.X  X..X               ",
-                              "XX   X..X               ",
-                              "X     X..X              ",
-                              "      X..X              ",
-                              "       X..X             ",
-                              "   X X X..XX X XX       ",
-                              "    X X XXX X X         ",
-                              "   X           XX       ",
-                              "    X         X         ",
-                              "   X           XX       ",
-                              "    X         X         ",
-                              "   X           XX       ",
-                              "    X X X X X X         ",
-                              "   X X X X X X XX       ",
-                              "                        ",
-                              "                        ",
-                              "                        ",
-                              "                        ",
-                              "                        ")))
-        self.cursor_objs = []
+        self.cursor_data: Tuple[Union[int, Tuple[Tuple[int, int], Tuple[str, ...]]],
+                                ...] = (pygame.SYSTEM_CURSOR_ARROW, pygame.SYSTEM_CURSOR_IBEAM,
+                                        ((0, 0),
+                                         ("XX                      ",
+                                          "X.X                     ",
+                                          "X..X                    ",
+                                          "X...X                   ",
+                                          "X....X                  ",
+                                          "X.....X                 ",
+                                          "X......X                ",
+                                          "X.......X               ",
+                                          "X........X              ",
+                                          "X.........X             ",
+                                          "X......XXXXX            ",
+                                          "X...X..X                ",
+                                          "X..XX..X                ",
+                                          "X.X  X..X               ",
+                                          "XX   X..X               ",
+                                          "X     X..X              ",
+                                          "      X..X              ",
+                                          "       X..X             ",
+                                          "   X X X..XX X XX       ",
+                                          "    X X XXX X X         ",
+                                          "   X           XX       ",
+                                          "    X         X         ",
+                                          "   X           XX       ",
+                                          "    X         X         ",
+                                          "   X           XX       ",
+                                          "    X X X X X X         ",
+                                          "   X X X X X X XX       ",
+                                          "                        ",
+                                          "                        ",
+                                          "                        ",
+                                          "                        ",
+                                          "                        ")))
+        self.cursor_objects = []
 
     def get_number_of_cursors(self) -> int:
         return len(self.cursor_data)
@@ -48,17 +47,17 @@ class CursorIcons:
     def init_cursors(self) -> None:
         for cursor in self.cursor_data:
             if isinstance(cursor, int):
-                self.cursor_objs.append(pygame.cursors.Cursor(cursor))
+                self.cursor_objects.append(pygame.cursors.Cursor(cursor))
             elif isinstance(cursor, tuple):
                 cursor_string = cursor[1]
                 cursor_bytes = pygame.cursors.compile(cursor_string)
-                self.cursor_objs.append(pygame.cursors.Cursor((len(cursor_string[0]), len(cursor_string)),
-                                                              cursor[0],
-                                                              *cursor_bytes))
+                self.cursor_objects.append(pygame.cursors.Cursor((len(cursor_string[0]), len(cursor_string)),
+                                                                 cursor[0],
+                                                                 *cursor_bytes))
 
     def get_cursor(self, index: int = 0) -> pygame.cursors.Cursor:
-        if 0 <= index < len(self.cursor_objs):
-            return self.cursor_objs[index]
+        if 0 <= index < len(self.cursor_objects):
+            return self.cursor_objects[index]
 
 
 class Cursor(pygame.sprite.Sprite):

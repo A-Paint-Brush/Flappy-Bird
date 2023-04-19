@@ -24,7 +24,7 @@ class Storage:
         return self.titles[achievement_id], self.body_text[achievement_id]
 
     def get_achievement_list(self) -> List[str]:
-        return list(self.titles[i] for i in self.achievements)
+        return [self.titles[i] for i in self.achievements]
 
     def has_achievement(self, achievement_id: int) -> bool:
         return achievement_id in self.achievements

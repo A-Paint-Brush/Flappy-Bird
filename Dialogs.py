@@ -1,9 +1,10 @@
 from collections import namedtuple
+from os.path import normpath
 from Global import *
-import os
 import pygame
-import Mouse
 import Widgets
+if TYPE_CHECKING:
+    import Mouse
 
 
 def v_pack_buttons(container_size: Tuple[int, int], widget_frame: Widgets.Frame, widget_labels: List[str],
@@ -86,8 +87,8 @@ class BaseDialog:
         self.button_thickness = button_thickness
         self.animation_speed = animation_speed
         self.z_index = z_index
-        self.small_font = pygame.font.Font(os.path.normpath("Fonts/Arial/normal.ttf"), 25)
-        self.large_font = pygame.font.Font(os.path.normpath("Fonts/Arial/normal.ttf"), 35)
+        self.small_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 25)
+        self.large_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
         self.height_difference = self.border_radius * 2 + button_length + button_padding
         self.frame_size = [max_window_size[0] - self.border_radius * 2,
                            max_window_size[1] - self.height_difference]
@@ -161,7 +162,7 @@ class BaseDialog:
                                      self.button_thickness, self.animation_speed, self.content_frame, self.surface,
                                      self.z_index)
 
-    def update(self, mouse_obj: Mouse.Cursor, keyboard_events: List[pygame.event.Event]) -> bool:
+    def update(self, mouse_obj: "Mouse.Cursor", keyboard_events: List[pygame.event.Event]) -> bool:
         return self.window.update(mouse_obj, keyboard_events)
 
     def draw(self) -> None:

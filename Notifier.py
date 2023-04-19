@@ -1,8 +1,9 @@
 from os.path import normpath
 from Global import *
-import Mouse
 import Time
 import pygame
+if TYPE_CHECKING:
+    import Mouse
 
 
 class ToastNotifier(pygame.sprite.Sprite):
@@ -122,7 +123,7 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.current_color = GREY3
         self.render_surface(self.current_color)
 
-    def hover_event(self, mouse_obj: Mouse.Cursor) -> None:
+    def hover_event(self, mouse_obj: "Mouse.Cursor") -> None:
         # By the time this function starts, this toast is already being touched by the mouse cursor.
         if self.direction == "idle":  # Only process hover events on the close button when the toast is not moving.
             if self.close_rect.collidepoint((mouse_obj.get_pos()[0] - self.x, mouse_obj.get_pos()[1] - self.y)):
@@ -196,7 +197,7 @@ class ToastGroup(pygame.sprite.Group):
             if self.toasts[i] is not None:
                 self.toasts[i].change_y(height)
 
-    def send_mouse_pos(self, mouse_object: Mouse.Cursor) -> None:
+    def send_mouse_pos(self, mouse_object: "Mouse.Cursor") -> None:
         updated_mouse = mouse_object.copy()
         dummy_mouse = False
         if self.z_index != mouse_object.get_z_index():

@@ -237,25 +237,35 @@ class Label(BaseWidget):
     def __init__(self,
                  x: Union[int, float],
                  y: Union[int, float],
-                 text: str,
+                 text: Union[str, List[str]],
                  fg: Tuple[int, int, int],
                  width: int,
                  font: pygame.font.Font,
+                 align: Literal["left", "center"] = "center",
+                 no_wrap: bool = False,
                  widget_name: str = "!label"):
         """Accepts text to be displayed, width in pixels, and a font object. The text will be word-wrapped to guarantee
         that it fits the requested width."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
-        self.text_lines = word_wrap_text(text, width, font)
-        self.line_height = font.size("|")[1]
+        self.text_lines = text if no_wrap else word_wrap_text(text, width, font)
+        self.line_height = font.size("█")[1]
         self.rect = pygame.Rect(self.x, self.y, width, self.line_height * len(self.text_lines))
         self.image = pygame.Surface((self.rect.width, self.rect.height), flags=pygame.SRCALPHA)
         self.image.fill((0, 0, 0, 0))
-        for index, text in enumerate(self.text_lines):
-            size = font.size(text)
-            surface = font.render(text, True, fg)
-            self.image.blit(surface, (width / 2 - size[0] / 2, index * self.line_height))
+        for index, line in enumerate(self.text_lines):
+            size = font.size(line)
+            surface = font.render(line, True, fg)
+            self.image.blit(surface, (width / 2 - size[0] / 2 if align == "center" else 0, index * self.line_height))
+
+    def update_position(self, x: Union[int, float], y: Union[int, float]) -> None:
+        self.x = x
+        self.y = y
+        self.rect = pygame.Rect(self.x, self.y, self.rect.width, self.rect.height)
+
+    def get_size(self) -> Tuple[int, int]:
+        return self.rect.size
 
 
 class Checkbox(BaseWidget):
@@ -280,7 +290,7 @@ class Checkbox(BaseWidget):
         self.button_length = button_length
         self.button_radius = border_radius
         self.text_lines = word_wrap_text(label_text, width - padding * 3 - self.button_length, font)
-        self.line_height = font.size("|")[1]
+        self.line_height = font.size("█")[1]
         self.checked = False
         self.image = pygame.Surface((width,
                                      padding * 2 + self.line_height * len(self.text_lines)), flags=pygame.SRCALPHA)
@@ -1881,6 +1891,13 @@ class Frame(BaseWidget):
                 if isinstance(widget_obj, Entry):
                     widget_obj.update_real_pos((self.x + widget_obj.get_pos()[0],
                                                 self.y + widget_obj.get_pos()[1] + self.y_scroll_offset))
+
+    def delete_widget(self, widget_id: str) -> None:
+        if widget_id in self.child_widgets:
+            self.child_widgets.pop(widget_id)
+            self.render_z_order.remove(widget_id)
+        else:
+            raise WidgetIDError(widget_id)
 
     def get_content_height(self) -> int:
         return max((widget.y + widget.image.get_height())

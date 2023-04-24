@@ -41,8 +41,8 @@ class ToastNotifier(pygame.sprite.Sprite):
                                         self.width - self.corner_radius * 2 - self.icon_img.get_size()[0] -
                                         self.image_padding - self.close_btn_img.get_size()[0],
                                         self.body_font)
-        self.height = (self.title_font.size("|")[1] * (len(self.title_text) + 1)
-                       + self.body_font.size("|")[1] * len(self.body_text)
+        self.height = (self.title_font.size("█")[1] * (len(self.title_text) + 1)
+                       + self.body_font.size("█")[1] * len(self.body_text)
                        + self.corner_radius * 2)
         self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
         self.current_color = GREY3
@@ -77,9 +77,9 @@ class ToastNotifier(pygame.sprite.Sprite):
         self.image.blit(self.icon_img, (self.corner_radius, self.corner_radius))
         if self.close_btn_img is not None:
             self.image.blit(self.close_btn_img, (self.close_btn_x, self.close_btn_y))
-        self.render_text(self.title_font, self.title_text, self.title_font.size("|")[1])
-        self.render_text(self.body_font, self.body_text, self.body_font.size("|")[1],
-                         self.title_font.size("|")[1] * (len(self.title_text) + 1))
+        self.render_text(self.title_font, self.title_text, self.title_font.size("█")[1])
+        self.render_text(self.body_font, self.body_text, self.body_font.size("█")[1],
+                         self.title_font.size("█")[1] * (len(self.title_text) + 1))
 
     def calc_damp(self, delta_time: float) -> None:
         self.remaining_distance *= pow(self.damping, delta_time)

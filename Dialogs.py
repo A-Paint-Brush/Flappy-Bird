@@ -1,8 +1,9 @@
 from collections import namedtuple
 from os.path import normpath
 from Global import *
-import pygame
+import Storage
 import Widgets
+import pygame
 if TYPE_CHECKING:
     import Mouse
 
@@ -215,3 +216,141 @@ class Pause(BaseDialog):
 
     def get_volume(self) -> int:
         return self.slider.get_slider_value()
+
+
+class HelpManager:
+    def __init__(self, parent_frame: Widgets.Frame, resolution: Tuple[int, int], font: pygame.font.Font,
+                 callback: Callable[[], None]):
+        # This class should handle all UI events. Should contain a method that returns a boolean indicating whether the
+        # loading animation should continue to be shown.
+        self.parent_frame = parent_frame
+        self.resolution = resolution
+        self.loading = True
+        self.font = font
+        self.line_height = font.size("█")[1]
+        self.padding = 15
+        # region Page Controls
+        widen_amount = 60
+        original_size = (260, 69)
+        offset_data, true_size = self.calc_button_data(widen_amount, original_size)
+        self.footer_height = true_size[1]
+        prev_btn = Widgets.Button(self.padding + widen_amount / 2,
+                                  self.resolution[1] - self.padding - true_size[1] + abs(offset_data[0]),
+                                  original_size[0], original_size[1], 1, BLACK, ORANGE, self.font, "Prev Page",
+                                  self.prev_page, widen_amount=widen_amount, widget_name="!prev_btn")
+        self.parent_frame.add_widget(prev_btn)
+        next_btn = Widgets.Button(self.resolution[0] - self.padding - true_size[0] + widen_amount / 2,
+                                  self.resolution[1] - self.padding - true_size[1] + abs(offset_data[0]),
+                                  original_size[0], original_size[1], 1, BLACK, ORANGE, self.font, "Next Page",
+                                  self.next_page, widen_amount=widen_amount, widget_name="!next_btn")
+        self.parent_frame.add_widget(next_btn)
+        # endregion
+        # region Header Frame
+        widen_amount = 45
+        original_size = (173, 69)
+        offset_data, true_size = self.calc_button_data(widen_amount, original_size)
+        self.header_height = max(true_size[1], self.line_height)
+        back_btn = Widgets.Button(self.padding + widen_amount / 2,
+                                  self.padding + (self.header_height / 2 - true_size[1] / 2) + abs(offset_data[0]),
+                                  original_size[0], original_size[1], 1, BLACK, ORANGE, self.font, "◄ Back",
+                                  callback, widen_amount=widen_amount, widget_name="!back_btn")
+        self.parent_frame.add_widget(back_btn)
+        # endregion
+        # region Page System
+        self.text_rect = pygame.Rect(self.padding, 2 * self.padding + self.header_height,
+                                     self.resolution[0] - 2 * self.padding,
+                                     self.resolution[1] - 4 * self.padding - self.footer_height - self.header_height)
+        self.lines_per_page = self.text_rect.height // self.line_height
+        self.wrapped_lines = []
+        self.page = 0
+        self.max_page = -1
+        self.page_string = "Page {} of {}"
+        self.help_data = Storage.HelpFile()
+        # endregion
+
+    @staticmethod
+    def calc_button_data(widen_amount: int, original_size: Tuple[int, int]) -> Tuple[Tuple[float, float],
+                                                                                     Tuple[int, float]]:
+        offset_data = Widgets.Button.calc_size(0, original_size[0], original_size[1], widen_amount=widen_amount)
+        true_size = (original_size[0] + widen_amount, abs(offset_data[0]) + offset_data[1])
+        return offset_data, true_size
+
+    def update(self) -> None:
+        if self.loading:
+            if not self.help_data.is_running():
+                self.loading = False
+                self.init_page_sys()
+
+    def init_page_sys(self) -> None:
+        self.wrapped_lines = word_wrap_text(self.help_data.get_data().strip("\n"), self.text_rect.width, self.font)
+        filled_pages, extra_lines = divmod(len(self.wrapped_lines), self.lines_per_page)
+        self.max_page = filled_pages - (not extra_lines)  # filled_pages - 1 if extra_lines is non-zero.
+        self.update_text_widget(True)
+
+    def update_text_widget(self, first_update: bool = False) -> None:
+        if not first_update:
+            self.parent_frame.delete_widget("!page_num")
+            self.parent_frame.delete_widget("!help_text")
+        page_num_display = Widgets.Label(self.resolution[0] / 2,
+                                         self.padding + (self.header_height / 2 - self.line_height / 2),
+                                         self.page_string.format(self.page + 1, self.max_page + 1), BLACK,
+                                         round(self.resolution[0] / 2), self.font, widget_name="!page_num")
+        self.parent_frame.add_widget(page_num_display)
+        text_widget = Widgets.Label(self.text_rect.x, self.text_rect.y,
+                                    self.wrapped_lines[self.page * self.lines_per_page:
+                                                       (self.page + 1) * self.lines_per_page],
+                                    BLACK, self.text_rect.width, self.font, align="left", no_wrap=True,
+                                    widget_name="!help_text")
+        self.parent_frame.add_widget(text_widget)
+
+    def next_page(self) -> None:
+        if self.page < self.max_page:
+            self.page += 1
+            self.update_text_widget()
+
+    def prev_page(self) -> None:
+        if self.page > 0:
+            self.page -= 1
+            self.update_text_widget()
+
+    def is_loading(self) -> bool:
+        return self.loading
+
+
+class BusyFrame:
+    def __init__(self, resolution: Tuple[int, int], font: pygame.font.Font, alpha: int, size: int, thickness: int,
+                 lit_length: int, speed: Union[int, float], unlit_color: Tuple[int, int, int],
+                 lit_color: Tuple[int, int, int]):
+        padding = 20
+        self.widgets: Dict[str, Optional[Union[Widgets.BaseWidget,
+                                               Widgets.BaseOverlay]]] = {}
+        self.z_order: List[str] = []
+        label = Widgets.Label(0, 0, "Loading...", WHITE, resolution[0] - 2 * padding, font)
+        frame_height = size + padding + label.get_size()[1]
+        frame_y = resolution[1] / 2 - frame_height / 2
+        label.update_position(resolution[0] / 2 - label.get_size()[0] / 2, frame_y + size + padding)
+        self.spinner_args = (resolution[0] / 2 - size / 2, frame_y, size, thickness, lit_length, speed, unlit_color,
+                             lit_color)
+        overlay = Widgets.BaseOverlay(*resolution)
+        overlay.image.set_alpha(alpha)
+        self.add_widget("overlay", overlay)
+        self.add_widget("spinner", None)
+        self.add_widget("label", label)
+        self.reset_animation()
+
+    def add_widget(self, widget_id: str, widget_obj: Optional[Union[Widgets.BaseWidget, Widgets.BaseOverlay]]) -> None:
+        self.widgets[widget_id] = widget_obj
+        self.z_order.append(widget_id)
+
+    def reset_animation(self) -> None:
+        """Resets the loading animation."""
+        self.widgets["spinner"] = Widgets.Spinner(*self.spinner_args)
+
+    def update(self, mouse_obj: "Mouse.Cursor", keyboard_events: List[pygame.event.Event]) -> None:
+        # 'Spinner' is the only widget in this class that needs to be updated.
+        # 'BaseOverlay' does not have an update method, and the update method of 'Label' only runs 'pass'.
+        self.widgets["spinner"].update(mouse_obj, keyboard_events)
+
+    def draw(self, surface: pygame.Surface) -> None:
+        for w in self.z_order:
+            surface.blit(self.widgets[w].image, self.widgets[w].rect)

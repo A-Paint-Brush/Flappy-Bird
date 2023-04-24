@@ -284,7 +284,7 @@ class ChildWindow:
 
     def create_label(self, string: str) -> None:
         label = Widgets.Label(self.content_width / 2 - self.word_wrap_width / 2, self.accumulated_height, string, BLACK,
-                              self.word_wrap_width, self.font, "!label{}".format(self.w_id_counter))
+                              self.word_wrap_width, self.font, widget_name="!label{}".format(self.w_id_counter))
         self.accumulated_height += label.rect.height + self.vertical_padding
         self.content_frame.add_widget(label)
         self.w_id_counter += 1

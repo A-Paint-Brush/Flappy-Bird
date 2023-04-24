@@ -9,7 +9,7 @@ import Pipe
 import Rainbow
 import Keyboard
 import Notifier
-import Achievements
+import Storage
 import Counters
 import pygame
 
@@ -40,11 +40,15 @@ class MainThread:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
+        self.font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
         self.special_widgets: Dict[
             Literal["transition", "settings", "pause"],
             List[Union[Tuple[Any, ...],
                  Widgets.SceneTransition, Dialogs.Settings, Dialogs.Pause, Callable[[], None], None]]
         ] = {}
+        self.busy_frame = Dialogs.BusyFrame(self.fixed_resolution, self.font, 100, 125, 19, 90, 250, (205, 205, 205),
+                                            (26, 134, 219))
+        self.help_mgr: Optional[Dialogs.HelpManager] = None
         self.key_events = []
         self.display_frame: Optional[Widgets.Frame] = None  # The widget-frame is rendered below the notifiers.
         self.init_menu_frame()
@@ -81,7 +85,7 @@ class MainThread:
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
                                          self.kerning)
         self.notifiers = Notifier.ToastGroup(self.fixed_resolution, 2)
-        self.achievement_list = Achievements.Storage()
+        self.achievement_list = Storage.Achievements()
         self.rainbow = Rainbow.Rainbow()
         self.fps_counter = Counters.FPS(self.fixed_resolution)
         # endregion
@@ -167,13 +171,17 @@ class MainThread:
                     self.special_widgets.pop(key)
                     if key == "pause":
                         self.unpause_game()
+            if self.game_state == "help":
+                self.help_mgr.update()
+                if self.help_mgr.is_loading():
+                    self.mouse_obj.increment_z_index()
             if self.display_frame is None:
                 self.mouse_obj.increment_z_index()
             else:
                 # The mouse will only be able to interact with the widgets if it did not touch any toasts.
                 self.display_frame.update(self.mouse_obj, self.key_events)
             if "pause" not in self.special_widgets:
-                if self.game_state == "menu":
+                if self.game_state in ("menu", "help"):
                     self.tiles_group.move()
                     self.tiles_group.reset_pos()
                 elif self.game_state in ("waiting", "started", "dying"):
@@ -201,6 +209,9 @@ class MainThread:
                 self.fps_counter.draw(self.display_surface)
             if self.display_frame is not None:
                 self.display_surface.blit(self.display_frame.image, self.display_frame.rect)
+            if self.game_state == "help" and self.help_mgr.is_loading():
+                self.busy_frame.update(self.mouse_obj, self.key_events)
+                self.busy_frame.draw(self.display_surface)
             if "settings" in self.special_widgets and isinstance(self.special_widgets["settings"][0],
                                                                  Dialogs.Settings):
                 self.special_widgets["settings"][0].draw()
@@ -232,15 +243,14 @@ class MainThread:
             self.special_widgets.pop("pause")
             self.reset_unusable_objects()
         self.game_state = "menu"
-        font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
         # region Vertical Buttons
         widget_labels = ["Start Game", "How to Play", "Achievements"]
         widget_sizes = [(260, 69), (280, 69), (300, 69)]
-        widget_callbacks = [self.schedule_toggle_round, lambda: None, lambda: None]
+        widget_callbacks = [self.schedule_toggle_round, self.schedule_show_help, lambda: None]
         padding = 10
         Dialogs.v_pack_buttons(self.fixed_resolution, self.display_frame, widget_labels, widget_sizes,
-                               widget_callbacks, font, padding)
+                               widget_callbacks, self.font, padding)
         # endregion
         # region Horizontal Buttons
         widen_amount = 20
@@ -265,16 +275,32 @@ class MainThread:
         if self.game_state == "dying":
             self.display_frame = None
 
-    def reset_unusable_objects(self) -> None:
-        self.bird = Bird.BirdManager(self.fixed_resolution, 5)
-        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
-                                         self.kerning)
+    def init_help_frame(self) -> None:
+        self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
+        self.busy_frame.reset_animation()
+        self.help_mgr = Dialogs.HelpManager(self.display_frame, self.fixed_resolution, self.font,
+                                            self.schedule_exit_help)
+        self.game_state = "help"
+
+    def exit_help_frame(self) -> None:
+        self.help_mgr = None
+        self.init_menu_frame()
 
     def schedule_toggle_round(self) -> None:
         if "transition" not in self.special_widgets:
             self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
                                                   self.init_game_frame if self.game_state == "menu"
                                                   else self.init_menu_frame]
+
+    def schedule_show_help(self) -> None:
+        if "transition" not in self.special_widgets:
+            self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
+                                                  self.init_help_frame]
+
+    def schedule_exit_help(self) -> None:
+        if "transition" not in self.special_widgets:
+            self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
+                                                  self.exit_help_frame]
 
     def schedule_launch_settings(self) -> None:
         if "settings" not in self.special_widgets:
@@ -291,6 +317,11 @@ class MainThread:
                                               0.05, widget_size[0] - 2 * padding, self.volume,
                                               [self.schedule_toggle_round, self.toggle_full_screen], 3)]
             self.pause_game()
+
+    def reset_unusable_objects(self) -> None:
+        self.bird = Bird.BirdManager(self.fixed_resolution, 5)
+        self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
+                                         self.kerning)
 
     def pause_game(self) -> None:
         self.bird.pause()

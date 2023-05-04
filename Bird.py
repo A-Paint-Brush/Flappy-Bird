@@ -189,6 +189,10 @@ class Bird(pygame.sprite.Sprite):
         else:
             return 0
 
+    def below_screen(self, resolution: Tuple[int, int]) -> bool:
+        """Returns True if the bird has fallen out of the screen."""
+        return self.y > resolution[1]
+
     def get_rect(self) -> pygame.Rect:
         return self.rect
 
@@ -205,7 +209,7 @@ class BirdManager(pygame.sprite.Group):
         self.clicked = False
         self.z_index = z_index
 
-    def process_user_events(self, state_data: Callable[[Optional[str]], Optional[str]], pipe_group: "Pipe.PipeGroup",
+    def process_user_events(self, state_data: Callable[..., Optional[str]], pipe_group: "Pipe.PipeGroup",
                             mouse_object: "Mouse.Cursor", mouse_initiated: bool) -> None:
         if mouse_initiated:
             conditions = (not self.z_index == mouse_object.get_z_index(), not mouse_object.get_button_state(1))
@@ -215,43 +219,47 @@ class BirdManager(pygame.sprite.Group):
                 return None
         if not mouse_initiated or (mouse_initiated and not self.clicked):
             self.clicked = True if mouse_initiated else self.clicked  # Don't change value if 'self.clicked' is False.
-            if state_data(None) == "waiting":
+            if state_data() == "waiting":
                 state_data("started")
                 pipe_group.generate()
                 self.bird_object.jump()
-            elif state_data(None) == "started":
+            elif state_data() == "started":
                 self.bird_object.jump()
         if mouse_initiated:
             mouse_object.increment_z_index()  # It's not possible to fail to interact with the bird :)
 
-    def spawn_bird(self, state_data: Callable[[Optional[str]], Optional[str]],
+    def spawn_bird(self, state_data: Callable[..., Optional[str]],
                    ground_group: "Ground.GroundGroup") -> None:
-        if state_data(None) == "menu":
+        if state_data() == "menu":
             self.spawned = True
             self.bird_object = Bird(self.resolution, ground_group.get_size())
             self.add(self.bird_object)
             state_data("waiting")
 
     def update(self, ground_group: "Ground.GroundGroup", pipe_group: "Pipe.PipeGroup",
-               state_data: Callable[[Optional[str]], Optional[str]], death_binding: Callable[[], None]) -> None:
-        if state_data(None) == "waiting":
+               state_data: Callable[..., Optional[str]], dying_binding: Callable[[], None],
+               game_over_binding: Callable[[], None]) -> None:
+        if state_data() == "waiting":
             self.move_ground_tiles(ground_group)
             self.bird_object.wiggle_tick()
             self.bird_object.tick_costume(True)
-        elif state_data(None) == "started":
+        elif state_data() == "started":
             collision_type, collided_pipe = self.update_all(ground_group, pipe_group)
             if collision_type:
                 if collision_type == 1:  # Cause of death was colliding with a pipe
                     collided_pipe.init_flash()
                     pipe_group.set_flash_pipe(collided_pipe)
                 state_data("dying")
-                death_binding()
+                dying_binding()
                 self.bird_object.jump()
-        elif state_data(None) == "dying":
+        elif state_data() == "dying":
             speed, movement = self.bird_object.calculate_movement()
             self.bird_object.move(movement, None, None)  # Collision detection is not needed after death.
             self.bird_object.calc_angle(speed, None)
             pipe_group.update_flash_pipe()  # Updates the pipe that killed the bird if the bird was killed by a pipe.
+            if self.spawned and self.bird_object.below_screen(self.resolution):
+                self.spawned = False
+                game_over_binding()
 
     def update_all(self, ground_group: "Ground.GroundGroup",
                    pipe_group: "Pipe.PipeGroup") -> Tuple[Literal[0, 1, 2], Optional[pygame.sprite.Sprite]]:

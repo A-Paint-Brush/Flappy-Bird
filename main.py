@@ -1,3 +1,4 @@
+from functools import partial
 from os.path import normpath
 from Global import *
 import Mouse
@@ -25,7 +26,7 @@ class MainThread:
         self.monitor_resolution = (self.monitor_info.current_w, self.monitor_info.current_h)
         # endregion
         # region State Variables
-        self.game_state = "menu"
+        self.game_state: Literal["menu", "waiting", "started", "dying", "help", "results"] = "menu"
         self.game_run = True
         self.debug = False
         self.rainbow_mode = False
@@ -40,15 +41,11 @@ class MainThread:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        self.font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
-        self.special_widgets: Dict[
-            Literal["transition", "settings", "pause"],
-            List[Union[Tuple[Any, ...],
-                 Widgets.SceneTransition, Dialogs.Settings, Dialogs.Pause, Callable[[], None], None]]
-        ] = {}
+        self.font = pygame.font.Font(normpath("./Fonts/Arial/normal.ttf"), 35)
+        self.special_widgets: Dict[Literal["transition", "settings", "pause", "send_score"], List[Any]] = {}
         self.busy_frame = Dialogs.BusyFrame(self.fixed_resolution, self.font, 100, 125, 19, 90, 250, (205, 205, 205),
                                             (26, 134, 219))
-        self.help_mgr: Optional[Dialogs.HelpManager] = None
+        self.ui_mgr: Optional[Union[Dialogs.HelpManager, Dialogs.LoseScreen]] = None
         self.key_events = []
         self.display_frame: Optional[Widgets.Frame] = None  # The widget-frame is rendered below the notifiers.
         self.init_menu_frame()
@@ -76,15 +73,16 @@ class MainThread:
         pygame.key.stop_text_input()
         # endregion
         # region Game Objects
-        self.background = pygame.image.load(normpath("Images/Sprites/background.png")).convert_alpha()
+        self.background = pygame.image.load(normpath("./Images/Sprites/background.png")).convert_alpha()
         self.mouse_obj = Mouse.Cursor()
-        self.bird = Bird.BirdManager(self.fixed_resolution, 5)
+        # Objects z-orders = 1: toast-group, 2: transition, 3: top-level windows, 4: widget-frame, 5: bird (final)
+        self.bird = Bird.BirdManager(self.fixed_resolution, z_index=5)
         self.tiles_group = Ground.GroundGroup(self.fixed_resolution)
         self.font_height = 50
         self.kerning = 5
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
                                          self.kerning)
-        self.notifiers = Notifier.ToastGroup(self.fixed_resolution, 2)
+        self.notifiers = Notifier.ToastGroup(self.fixed_resolution, z_index=1)
         self.achievement_list = Storage.Achievements()
         self.rainbow = Rainbow.Rainbow()
         self.fps_counter = Counters.FPS(self.fixed_resolution)
@@ -122,6 +120,8 @@ class MainThread:
                         self.check_key_sequence(self.magic_word, event.key, self.toggle_debug)
                         self.check_key_sequence(self.rickroll, event.key, self.toggle_rickroll)
                         # endregion
+                        if event.key == pygame.K_ESCAPE and self.full_screen:
+                            self.toggle_full_screen()
                         if self.game_state in ("waiting", "started") and \
                                 "transition" not in self.special_widgets and \
                                 "pause" not in self.special_widgets:
@@ -142,6 +142,10 @@ class MainThread:
                 self.special_widgets["settings"][0] = Dialogs.Settings(*self.special_widgets["settings"][0])
             elif "pause" in self.special_widgets and isinstance(self.special_widgets["pause"][0], tuple):
                 self.special_widgets["pause"][0] = Dialogs.Pause(*self.special_widgets["pause"][0])
+            elif "send_score" in self.special_widgets and isinstance(self.special_widgets["send_score"][0], tuple):
+                self.special_widgets["send_score"][0] = Dialogs.SubmitScore(*self.special_widgets["send_score"][0])
+            # The z-index will not be increased if the mouse touches any toasts.
+            self.notifiers.send_mouse_pos(self.mouse_obj)
             if "transition" in self.special_widgets:
                 return_code = self.special_widgets["transition"][0].update()
                 if return_code == 1:
@@ -150,43 +154,55 @@ class MainThread:
                     self.special_widgets.pop("transition")
             else:
                 self.mouse_obj.increment_z_index()
-            # The z-index will not be increased if the mouse touches any toasts.
-            self.notifiers.send_mouse_pos(self.mouse_obj)
-            key: Literal["settings", "pause", None] = None
+            show_load = False
+            if self.game_state == "help":
+                self.ui_mgr.update()
+                if self.ui_mgr.is_loading():
+                    show_load = True
+                    self.mouse_obj.reset_z_index()
+            elif self.game_state == "results":
+                status = self.ui_mgr.update()
+                if status != "done":
+                    show_load = True
+                    self.mouse_obj.reset_z_index()
+                    if status == "fetch_done" and self.ui_mgr.check_record_score():
+                        self.schedule_submit_score()
+            key: Optional[Literal["settings", "pause", "send_score"]] = None
             if "settings" in self.special_widgets:
                 key = "settings"
             elif "pause" in self.special_widgets:
                 key = "pause"
+            elif "send_score" in self.special_widgets and isinstance(self.special_widgets["send_score"][0],
+                                                                     Dialogs.SubmitScore):
+                key = "send_score"
             else:
                 self.mouse_obj.increment_z_index()
             if key is not None:
                 return_code = self.special_widgets[key][0].update(self.mouse_obj, self.key_events)
-                new_volume = self.special_widgets[key][0].get_volume()
-                if new_volume != self.volume:
-                    self.volume = new_volume
-                    volume_float = self.volume / 100
-                    for sound in self.audio_objects.values():
-                        sound.set_volume(volume_float)
+                if key in ("settings", "pause"):
+                    new_volume = self.special_widgets[key][0].get_volume()
+                    if new_volume != self.volume:
+                        self.volume = new_volume
+                        volume_float = self.volume / 100
+                        for sound in self.audio_objects.values():
+                            sound.set_volume(volume_float)
                 if return_code:
                     self.special_widgets.pop(key)
                     if key == "pause":
                         self.unpause_game()
-            if self.game_state == "help":
-                self.help_mgr.update()
-                if self.help_mgr.is_loading():
-                    self.mouse_obj.increment_z_index()
             if self.display_frame is None:
                 self.mouse_obj.increment_z_index()
             else:
                 # The mouse will only be able to interact with the widgets if it did not touch any toasts.
                 self.display_frame.update(self.mouse_obj, self.key_events)
             if "pause" not in self.special_widgets:
-                if self.game_state in ("menu", "help"):
+                if self.game_state in ("menu", "help", "results"):
                     self.tiles_group.move()
                     self.tiles_group.reset_pos()
                 elif self.game_state in ("waiting", "started", "dying"):
                     self.bird.process_user_events(self.access_game_state, self.pipe_group, self.mouse_obj, True)
-                    self.bird.update(self.tiles_group, self.pipe_group, self.access_game_state, self.init_dying_frame)
+                    self.bird.update(self.tiles_group, self.pipe_group, self.access_game_state, self.init_dying_frame,
+                                     self.schedule_game_over)
             if self.rainbow_mode:
                 self.rainbow.tick()
             self.fps_counter.tick()
@@ -205,23 +221,29 @@ class MainThread:
                 score_obj = self.pipe_group.get_score_obj()
                 size = score_obj.calc_size()
                 score_obj.draw(self.display_surface, (self.fixed_resolution[0] / 2 - size[0] / 2, 20))
+            if self.game_state == "results":
+                # Render score on results screen.
+                self.pipe_group.get_score_obj().draw(self.display_surface, self.ui_mgr.get_score_position())
             if self.debug:
                 self.fps_counter.draw(self.display_surface)
             if self.display_frame is not None:
                 self.display_surface.blit(self.display_frame.image, self.display_frame.rect)
-            if self.game_state == "help" and self.help_mgr.is_loading():
-                self.busy_frame.update(self.mouse_obj, self.key_events)
-                self.busy_frame.draw(self.display_surface)
             if "settings" in self.special_widgets and isinstance(self.special_widgets["settings"][0],
                                                                  Dialogs.Settings):
                 self.special_widgets["settings"][0].draw()
             elif "pause" in self.special_widgets and isinstance(self.special_widgets["pause"][0], Dialogs.Pause):
                 self.special_widgets["pause"][0].draw()
-            self.notifiers.draw(self.display_surface)  # Draws nothing if empty.
+            elif "send_score" in self.special_widgets and isinstance(self.special_widgets["send_score"][0],
+                                                                     Dialogs.SubmitScore):
+                self.special_widgets["send_score"][0].draw()
+            if show_load:
+                self.busy_frame.update(self.mouse_obj, self.key_events)
+                self.busy_frame.draw(self.display_surface)
             if "transition" in self.special_widgets and isinstance(self.special_widgets["transition"][0],
                                                                    Widgets.SceneTransition):
                 self.display_surface.blit(self.special_widgets["transition"][0].image,
                                           self.special_widgets["transition"][0].rect)
+            self.notifiers.draw(self.display_surface)  # Draws nothing if empty.
             # endregion
             # region Display Resizing
             self.resized_surface = resize_surf(self.display_surface, self.current_resolution)
@@ -238,6 +260,9 @@ class MainThread:
             self.game_state = new_state
 
     def init_menu_frame(self) -> None:
+        if self.game_state == "results":
+            self.ui_mgr = None
+            self.reset_unusable_objects()
         if "pause" in self.special_widgets:
             self.unpause_game()
             self.special_widgets.pop("pause")
@@ -247,7 +272,8 @@ class MainThread:
         # region Vertical Buttons
         widget_labels = ["Start Game", "How to Play", "Achievements"]
         widget_sizes = [(260, 69), (280, 69), (300, 69)]
-        widget_callbacks = [self.schedule_toggle_round, self.schedule_show_help, lambda: None]
+        widget_callbacks = [partial(self.schedule_toggle_round, "game"), self.schedule_show_help,
+                            partial(print, "NotImplemented")]
         padding = 10
         Dialogs.v_pack_buttons(self.fixed_resolution, self.display_frame, widget_labels, widget_sizes,
                                widget_callbacks, self.font, padding)
@@ -261,6 +287,10 @@ class MainThread:
         # endregion
 
     def init_game_frame(self) -> None:
+        if self.game_state == "results":
+            self.game_state = "menu"
+            self.ui_mgr = None
+            self.reset_unusable_objects()
         if self.game_state == "menu":
             self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
             padding = 10
@@ -278,18 +308,26 @@ class MainThread:
     def init_help_frame(self) -> None:
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
         self.busy_frame.reset_animation()
-        self.help_mgr = Dialogs.HelpManager(self.display_frame, self.fixed_resolution, self.font,
-                                            self.schedule_exit_help)
+        self.ui_mgr = Dialogs.HelpManager(self.display_frame, self.fixed_resolution, self.font, self.schedule_exit_help)
         self.game_state = "help"
 
+    def init_results_screen(self) -> None:
+        self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
+        self.busy_frame.reset_animation()
+        self.ui_mgr = Dialogs.LoseScreen(self.display_frame, self.fixed_resolution, self.pipe_group.get_score_obj(),
+                                         [partial(self.schedule_toggle_round, "game"),
+                                          partial(self.schedule_toggle_round, "menu")])
+        self.ui_mgr.start_fetch_data()
+        self.game_state = "results"
+
     def exit_help_frame(self) -> None:
-        self.help_mgr = None
+        self.ui_mgr = None
         self.init_menu_frame()
 
-    def schedule_toggle_round(self) -> None:
+    def schedule_toggle_round(self, target: Literal["menu", "game"]) -> None:
         if "transition" not in self.special_widgets:
             self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
-                                                  self.init_game_frame if self.game_state == "menu"
+                                                  self.init_game_frame if target == "game"
                                                   else self.init_menu_frame]
 
     def schedule_show_help(self) -> None:
@@ -315,11 +353,28 @@ class MainThread:
             padding = 20
             self.special_widgets["pause"] = [(self.display_surface, self.fixed_resolution, widget_size, 19, 19, 10, 4,
                                               0.05, widget_size[0] - 2 * padding, self.volume,
-                                              [self.schedule_toggle_round, self.toggle_full_screen], 3)]
+                                              [partial(self.schedule_toggle_round, "menu"),
+                                               self.toggle_full_screen], 3)]
             self.pause_game()
 
+    def schedule_submit_score(self) -> None:
+        if "send_score" not in self.special_widgets and self.game_state == "results":
+            widget_size = (460, 360)
+            padding = 20
+            self.special_widgets["send_score"] = [(self.display_surface, self.fixed_resolution, widget_size, 19, 19, 10,
+                                                   4, 0.05, widget_size[0] - 2 * padding, self.submit_score, 3)]
+
+    def submit_score(self, player_name: str) -> None:
+        if self.game_state == "results":
+            self.ui_mgr.start_write_data(player_name)
+
+    def schedule_game_over(self) -> None:
+        if self.game_state == "dying":
+            self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
+                                                  self.init_results_screen]
+
     def reset_unusable_objects(self) -> None:
-        self.bird = Bird.BirdManager(self.fixed_resolution, 5)
+        self.bird = Bird.BirdManager(self.fixed_resolution, z_index=5)
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
                                          self.kerning)
 

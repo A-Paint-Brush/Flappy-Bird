@@ -1,10 +1,12 @@
 from collections import namedtuple
-from os.path import normpath
 from Global import *
 import Storage
 import Widgets
+import getpass
 import pygame
+import os
 if TYPE_CHECKING:
+    import Counters
     import Mouse
 
 
@@ -88,19 +90,25 @@ class BaseDialog:
         self.button_thickness = button_thickness
         self.animation_speed = animation_speed
         self.z_index = z_index
-        self.small_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 25)
-        self.large_font = pygame.font.Font(normpath("Fonts/Arial/normal.ttf"), 35)
+        self.small_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 25)
+        self.large_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 35)
         self.height_difference = self.border_radius * 2 + button_length + button_padding
         self.frame_size = [max_window_size[0] - self.border_radius * 2,
                            max_window_size[1] - self.height_difference]
         self.max_window_size = max_window_size
+        self.final_window_pos = (self.resolution[0] / 2 - self.max_window_size[0] / 2,
+                                 self.resolution[1] / 2 - (self.frame_size[1] + self.height_difference) / 2)
         self.scrollbar_width = 20
         self.max_widget_width = max_widget_width - self.border_radius * 2
         self.content_width = self.frame_size[0]
         self.widget_id = 1
         self.accumulated_y = 0
-        self.content_frame = Widgets.Frame(0, 0, self.frame_size[0], self.frame_size[1], 20, z_index)
-        self.window = None  # The size of the window cannot be determined until all widgets are added.
+        # The real top-left coordinates of the frame has to be given so the IME candidate list will appear at the
+        # correct place, but they will be ignored by the Widgets.Window class when rendering.
+        self.content_frame = Widgets.Frame(self.final_window_pos[0] + border_radius,
+                                           self.final_window_pos[1] + border_radius + button_length + button_padding,
+                                           self.frame_size[0], self.frame_size[1], 20, z_index=z_index)
+        self.window: Optional[Widgets.Window] = None  # The window size cannot be determined until all widgets are added
 
     def h_shift_widgets(self, amount: Union[int, float]) -> None:
         for widget in self.content_frame.child_widgets.values():
@@ -115,9 +123,10 @@ class BaseDialog:
                 # necessary to manually update the rect.
             widget.rect.move_ip(amount, 0)
 
-    def create_label(self, text: str, padding: int, font: pygame.font.Font) -> None:
+    def create_label(self, text: str, padding: int, font: pygame.font.Font,
+                     align: Literal["left", "center", "right"] = "center") -> None:
         label = Widgets.Label(self.content_width / 2 - self.max_widget_width / 2, self.accumulated_y, text, BLACK,
-                              self.max_widget_width, font, widget_name="!label{}".format(self.widget_id))
+                              self.max_widget_width, font, align=align, widget_name="!label{}".format(self.widget_id))
         self.content_frame.add_widget(label)
         self.accumulated_y += label.rect.height + padding
         self.widget_id += 1
@@ -146,19 +155,19 @@ class BaseDialog:
         self.widget_id += 1
         return slider
 
-    def fit_to_content(self) -> None:
-        if self.content_frame.get_content_height() > self.frame_size[1]:
+    def fit_to_content(self, force_scroll: bool = False) -> None:
+        if self.content_frame.get_content_height() > self.frame_size[1] or force_scroll:
             self.max_widget_width -= self.scrollbar_width
             self.content_width -= self.scrollbar_width
             self.h_shift_widgets(self.scrollbar_width / -2)
+            self.content_frame.update_ime_rect()
             self.content_frame.add_widget(Widgets.ScrollBar(width=self.scrollbar_width))
         else:
             self.frame_size[1] = self.content_frame.get_content_height()
             # The frame's size now has to be forcibly updated.
             self.content_frame.height = self.frame_size[1]
             # Updating the rect is not necessary as it'll be updated by the parent window.
-        self.window = Widgets.Window(self.resolution[0] / 2 - self.max_window_size[0] / 2, self.resolution[1],
-                                     self.resolution[1] / 2 - (self.frame_size[1] + self.height_difference) / 2, GREEN,
+        self.window = Widgets.Window(self.final_window_pos[0], self.resolution[1], self.final_window_pos[1], GREEN,
                                      100, RED, GREY6, self.border_radius, self.button_length, self.button_padding,
                                      self.button_thickness, self.animation_speed, self.content_frame, self.surface,
                                      self.z_index)
@@ -216,6 +225,189 @@ class Pause(BaseDialog):
 
     def get_volume(self) -> int:
         return self.slider.get_slider_value()
+
+
+class SubmitScore(BaseDialog):
+    def __init__(self, surface: pygame.Surface, resolution: Tuple[int, int], max_window_size: Tuple[int, int],
+                 border_radius: int, button_length: int, button_padding: int, button_thickness: int,
+                 animation_speed: Union[int, float], max_widget_width: int, callback: Callable[[str], None],
+                 z_index: int = 1):
+        super().__init__(surface, resolution, max_window_size, border_radius, button_length, button_padding,
+                         button_thickness, animation_speed, max_widget_width, z_index)
+        self.label_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 22)
+        self.entry_font = pygame.font.Font(os.path.normpath("./Fonts/JhengHei/normal.ttc"), 20)
+        self.submitted = False
+        self.callback = callback
+        vertical_padding = 10
+        self.create_label("New high score! Submit your score?", 2 * vertical_padding, self.label_font)
+        self.create_label("Name:", vertical_padding, self.label_font, align="left")
+        entry_size = (160, 38)
+        self.length_limit = 50
+        self.entry = Widgets.Entry(self.scrollbar_width / 2 + vertical_padding, self.accumulated_y, entry_size[0],
+                                   entry_size[1], 4, self.entry_font, BLACK)
+        self.accumulated_y += entry_size[1] + vertical_padding
+        self.content_frame.add_widget(self.entry)
+        with suppress(Exception):  # In case getuser() fails
+            self.entry.set_auto_typed_text(getpass.getuser()[:self.length_limit])
+        original_size = (144, 60)
+        widen_amount = 60
+        offset_data = Widgets.Button.calc_size(0, original_size[0], original_size[1], widen_amount=widen_amount)
+        true_size = (original_size[0] + widen_amount, abs(offset_data[0]) + offset_data[1])
+        button = Widgets.Button(max_widget_width / 2 - true_size[0] / 2 + widen_amount / 2,
+                                self.accumulated_y + abs(offset_data[0]),
+                                original_size[0], original_size[1], 1, BLACK, ORANGE, self.large_font, "Submit",
+                                self.submit, widen_amount=widen_amount)
+        self.accumulated_y += true_size[1] + vertical_padding
+        self.content_frame.add_widget(button)
+        self.msg_y = self.accumulated_y
+        self.update_info_label("", no_delete=True)
+        self.fit_to_content(force_scroll=True)  # Force the scrollbar to appear to accommodate for the info label.
+
+    def update_info_label(self, message: str, no_delete: bool = False) -> None:
+        if not no_delete:
+            self.content_frame.delete_widget("!info_label")
+        label = Widgets.Label(self.content_width / 2 - self.max_widget_width / 2, self.msg_y, message, BLACK,
+                              self.max_widget_width, self.label_font, widget_name="!info_label")
+        self.content_frame.add_widget(label)
+
+    def check_valid(self, value: str) -> Optional[str]:
+        message = None
+        if not value:  # Empty string.
+            message = "Please enter at least one non-whitespace character."
+        elif len(value) > self.length_limit:
+            message = "You've exceeded the limit of {} characters.".format(self.length_limit)
+        return message
+
+    def submit(self) -> None:
+        if self.submitted:
+            return None
+        entry_value = self.entry.get_entry_content().strip()
+        err_msg = self.check_valid(entry_value)
+        if err_msg is None:
+            self.window.close_window(bypass_idle_check=True)
+            self.callback(entry_value)
+            self.submitted = True
+        else:
+            self.update_info_label(err_msg)
+
+
+class ScoreBoard(Widgets.Frame):
+    def __init__(self, x: int, y: int, width: int, height: int, radius: int, padding: int, font: pygame.font.Font,
+                 score_data: Optional[List[Dict[str, str]]], score_max_width: int, z_index: int = 1,
+                 widget_name: str = "!scoreboard"):
+        super().__init__(x, y, width, height, padding, bg=GREEN, z_index=z_index, widget_name=widget_name)
+        self.score_data = score_data
+        scrollbar_width = 20
+        content_width = width - 2 * radius - 3 * padding - scrollbar_width
+        name_width = content_width - score_max_width
+        if self.score_data is None:
+            label = Widgets.Label(0, padding, "Failed to load high-score data.", BLACK, width - scrollbar_width, font)
+            self.add_widget(label)
+        elif self.score_data:
+            accumulated_y = padding
+            for index, entry in enumerate(self.score_data):
+                row = Widgets.SplitLabel(padding, accumulated_y, (entry["player-name"], entry["score"]),
+                                         (name_width, score_max_width), font, BLACK, ORANGE, radius, padding,
+                                         widget_name="!row{}".format(index))
+                accumulated_y += row.rect.height + padding
+                self.add_widget(row)
+        else:
+            label = Widgets.Label(0, padding, "(Empty)", BLACK, width - scrollbar_width, font)
+            self.add_widget(label)
+        self.add_widget(Widgets.ScrollBar(width=scrollbar_width))
+
+    def get_score_data(self) -> List[Dict[str, str]]:
+        return [] if self.score_data is None else self.score_data
+
+
+class LoseScreen:
+    def __init__(self, parent_frame: Widgets.Frame, resolution: Tuple[int, int], score: "Counters.Score",
+                 callbacks: List[Callable[[], None]]):
+        self.parent_frame = parent_frame
+        self.resolution = resolution
+        self.large_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 50)
+        self.small_font = pygame.font.Font(os.path.normpath("./Fonts/JhengHei/normal.ttc"), 16)
+        self.score = score
+        self.state: Literal["idle", "fetching", "writing"] = "idle"
+        self.widget_id = 1
+        self.padding = 20
+        self.accumulated_y = self.padding * 6
+        self.add_centered_label("Your score:", PURPLE)
+        size = self.score.calc_size()
+        self.score_pos = (resolution[0] / 2 - size[0] / 2, self.accumulated_y)
+        self.accumulated_y += size[1] + self.padding
+        scoreboard_size = (250, 200)
+        self.scoreboard_rect = pygame.Rect(self.resolution[0] / 2 - scoreboard_size[0] / 2, self.accumulated_y,
+                                           scoreboard_size[0], scoreboard_size[1])
+        self.db_thread = Storage.ScoreDB()
+        self.scoreboard_obj: Optional[ScoreBoard] = None
+        self.accumulated_y += scoreboard_size[1] + self.padding
+        v_pack_buttons(resolution, self.parent_frame, ["Retry", "Main Menu"], [(144, 69), (230, 69)],
+                       callbacks, self.large_font, self.padding, start_y=self.accumulated_y)
+
+    def get_score_position(self) -> Tuple[float, int]:
+        return self.score_pos
+
+    def update(self) -> Literal["loading", "fetch_done", "done"]:
+        current_state = self.state
+        if self.db_thread.is_busy():
+            return "loading"
+        else:
+            self.state = "idle"
+            if current_state == "fetching":
+                return "fetch_done"
+            elif current_state == "writing" or current_state == "idle":
+                return "done"
+
+    def add_centered_label(self, text: str, color: Tuple[int, int, int]) -> None:
+        label = Widgets.Label(0, 0, text, color, self.resolution[0] - 2 * self.padding, self.large_font,
+                              widget_name="!label{}".format(self.widget_id))
+        label.update_position(self.resolution[0] / 2 - label.get_size()[0] / 2, self.accumulated_y)
+        self.parent_frame.add_widget(label)
+        self.widget_id += 1
+        self.accumulated_y += label.get_size()[1] + self.padding
+
+    def is_loading(self) -> bool:
+        return self.db_thread.is_busy()
+
+    def start_fetch_data(self) -> None:
+        self.state = "fetching"
+        self.db_thread.start_fetch_scores()
+
+    def update_scoreboard(self, database_data: Optional[List[Dict[str, str]]], delete_old: bool = True):
+        if delete_old:
+            self.parent_frame.delete_widget("!scoreboard")
+        score_width = 40
+        self.scoreboard_obj = ScoreBoard(self.scoreboard_rect.x, self.scoreboard_rect.y, self.scoreboard_rect.width,
+                                         self.scoreboard_rect.height, 13, 10, self.small_font, database_data,
+                                         score_width, z_index=self.parent_frame.z_index, widget_name="!scoreboard")
+        self.parent_frame.add_widget(self.scoreboard_obj)
+
+    def check_record_score(self) -> bool:
+        """Call this method after the thread started by calling 'self.start_fetch_data()' is done. A boolean will be
+        returned indicating whether the 'SubmitScore' dialog should be opened."""
+        return_code, db_data = self.db_thread.get_data()
+        current_score = self.score.get_score()
+        self.update_scoreboard(db_data, delete_old=False)
+        if db_data:  # DB is not empty
+            try:
+                top_score = int(db_data[0]["score"])
+            except ValueError:
+                return False
+            else:
+                return current_score > top_score
+        else:
+            return current_score > 0
+
+    def start_write_data(self, player_name: str) -> None:
+        if not self.db_thread.is_busy():
+            self.state = "writing"
+            current_score = self.score.get_score()
+            current_data = self.scoreboard_obj.get_score_data()
+            current_data.insert(0, {self.db_thread.fields[0]: player_name,
+                                    self.db_thread.fields[1]: str(current_score)})
+            self.update_scoreboard(current_data)
+            self.db_thread.start_write_score(player_name, current_score)
 
 
 class HelpManager:

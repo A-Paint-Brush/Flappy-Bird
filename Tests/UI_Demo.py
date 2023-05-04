@@ -64,7 +64,7 @@ class MainProc:
         self.counters = [0, 0]
         self.checkboxes = []
         self.entries = []
-        self.content_frame = Widgets.Frame(0, 0, self.resolution[0], self.resolution[1], 20, 2)
+        self.content_frame = Widgets.Frame(0, 0, self.resolution[0], self.resolution[1], 20, z_index=2)
         widget_size = [(210, 60), (238, 69)]
         widget_data = [list(Widgets.Button.calc_size(0, *widget_size[0])),
                        list(Widgets.Button.calc_size(0, *widget_size[1]))]
@@ -256,7 +256,7 @@ class ChildWindow:
         self.font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 23)
         # region Initialize Frame
         # Note that the position of the frame isn't important, since it will be handled by the window it's displayed in.
-        self.content_frame = Widgets.Frame(0, 0, self.frame_size[0], self.frame_size[1], 20, z_index)
+        self.content_frame = Widgets.Frame(0, 0, self.frame_size[0], self.frame_size[1], 20, z_index=z_index)
         for s in ("Hello, world!\n您好，世界！",
                   "The quick brown fox jumps over the lazy dog.\n敏捷地棕色狐狸跳過了懶惰地狗。",
                   "Lorem ipsum dolor sit amet.\n微風迎客，軟語伴茶。"):

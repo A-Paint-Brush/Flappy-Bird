@@ -7,7 +7,7 @@ import Time
 class Ground(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int]):
         super().__init__()
-        self.tile_image = pygame.image.load(normpath("Images/Sprites/ground.png")).convert_alpha()
+        self.tile_image = pygame.image.load(normpath("./Images/Sprites/ground.png")).convert_alpha()
         self.tile_width, self.tile_height = self.tile_image.get_size()
         self.tile_count = 1
         while self.tile_width * self.tile_count < resolution[0] + self.tile_width:

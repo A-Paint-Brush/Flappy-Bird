@@ -28,16 +28,25 @@ def collide_function(sprite1: pygame.sprite.Sprite, sprite2: pygame.sprite.Sprit
     return result is not None
 
 
-def resize_surf(display_surf: pygame.Surface, size: Union[List, Tuple]) -> pygame.Surface:
+def resize_surf(display_surf: pygame.Surface,
+                size: Union[List[Union[int, float]], Tuple[Union[int, float], Union[int, float]]],
+                size_only: bool = False) -> Union[pygame.Surface, Tuple[Union[int, float], Union[int, float]]]:
     current_size = display_surf.get_size()
-    new_size = [0, 0]
     if current_size[0] * (size[1] / current_size[1]) < size[0]:
-        new_size[0] = current_size[0] * (size[1] / current_size[1])
-        new_size[1] = size[1]
+        new_size = (current_size[0] * (size[1] / current_size[1]), size[1])
     else:
-        new_size[0] = size[0]
-        new_size[1] = current_size[1] * (size[0] / current_size[0])
-    return pygame.transform.scale(display_surf, new_size)
+        new_size = (size[0], current_size[1] * (size[0] / current_size[0]))
+    if size_only:
+        return new_size
+    else:
+        return pygame.transform.scale(display_surf, new_size)
+
+
+def dilate_coordinates(pos: Tuple[int, int], fixed_size: Tuple[int, int], current_size: List,
+                       resized_surf: Tuple[int, int]) -> Tuple[float, float]:
+    offset_pos = ((current_size[0] - resized_surf[0]) / 2, (current_size[1] - resized_surf[1]) / 2)
+    return (offset_pos[0] + (resized_surf[0] * (pos[0] / fixed_size[0])),
+            offset_pos[1] + (resized_surf[1] * (pos[1] / fixed_size[1])))
 
 
 def resize_mouse_pos(pos: Tuple[int, int],

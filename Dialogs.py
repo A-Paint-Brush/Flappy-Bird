@@ -263,6 +263,10 @@ class SubmitScore(BaseDialog):
         self.update_info_label("", no_delete=True)
         self.fit_to_content(force_scroll=True)  # Force the scrollbar to appear to accommodate for the info label.
 
+    def window_resize_event(self, current_res: List[int],
+                            resized_res: Tuple[Union[int, float], Union[int, float]]) -> None:
+        self.content_frame.update_window_data(self.resolution, current_res, resized_res)
+
     def update_info_label(self, message: str, no_delete: bool = False) -> None:
         if not no_delete:
             self.content_frame.delete_widget("!info_label")

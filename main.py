@@ -144,6 +144,8 @@ class MainThread:
                 self.special_widgets["pause"][0] = Dialogs.Pause(*self.special_widgets["pause"][0])
             elif "send_score" in self.special_widgets and isinstance(self.special_widgets["send_score"][0], tuple):
                 self.special_widgets["send_score"][0] = Dialogs.SubmitScore(*self.special_widgets["send_score"][0])
+                if tuple(self.current_resolution) != self.fixed_resolution:
+                    self.update_window_ime_size()
             # The z-index will not be increased if the mouse touches any toasts.
             self.notifiers.send_mouse_pos(self.mouse_obj)
             if "transition" in self.special_widgets:
@@ -403,6 +405,15 @@ class MainThread:
         if self.current_resolution[1] < self.fixed_resolution[1]:
             self.current_resolution[1] = self.fixed_resolution[1]
         self.display = pygame.display.set_mode(self.current_resolution, pygame.RESIZABLE)
+        self.update_window_ime_size()
+
+    def update_window_ime_size(self) -> None:
+        if self.game_state == "results" and "send_score" in self.special_widgets and \
+                isinstance(self.special_widgets["send_score"][0], Dialogs.SubmitScore):
+            self.special_widgets["send_score"][0].window_resize_event(self.current_resolution,
+                                                                      resize_surf(self.display_surface,
+                                                                                  self.current_resolution,
+                                                                                  size_only=True))
 
     @staticmethod
     def check_key_sequence(sequence_obj: Keyboard.KeySequence,

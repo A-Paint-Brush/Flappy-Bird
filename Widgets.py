@@ -563,8 +563,8 @@ class Entry(BaseWidget):
                  widget_name: str = "!entry"):
         """A simple text-box widget. Behaves virtually identical to the text-box widget of win32gui. Its copy-pasting
         functionality relies on the 'Pyperclip' module, so make sure to have it installed. Note that the environment
-        variable 'SDL_IME_SHOW_UI' must be set to 1 for this widget to function correctly. This is done automatically by
-        line 8 of this module."""
+        variable 'SDL_IME_SHOW_UI' must be set to 1 for this widget to function correctly. This is done automatically
+        when the module is imported."""
         super().__init__(widget_name)
         self.x = x
         self.y = y
@@ -758,7 +758,7 @@ class Entry(BaseWidget):
                                             0,
                                             0)
                     # It is unclear what effect the size of the rect has on the IME candidate list.
-                    pygame.key.set_text_input_rect(text_rect)
+                    pygame.key.set_text_input_rect(self.parent.calc_resized_ime_rect(text_rect))
                     if not self.ime_canvas.get_text():
                         self.stop_ime_input()
         for key in self.sticky_keys.values():
@@ -1916,6 +1916,7 @@ class Frame(BaseWidget):
         self.y = y
         self.width = width
         self.height = height
+        self.window_data: Dict[str, Optional[Union[List[int], Tuple[Union[int, float], Union[int, float]]]]] = {}
         self.padding_bottom = padding_bottom
         self.bg = bg
         self.scroll_constant = 20
@@ -1977,6 +1978,22 @@ class Frame(BaseWidget):
         self.y_scroll_offset = offset
         self.update_ime_rect()
 
+    def calc_resized_ime_rect(self, original_rect: pygame.Rect) -> pygame.Rect:
+        if self.window_data:
+            return pygame.Rect(*dilate_coordinates(original_rect.topleft, self.window_data["fixed_res"],
+                                                   self.window_data["current_res"], self.window_data["resized_res"]),
+                               original_rect.width, original_rect.height)
+        else:
+            return original_rect
+
+    def update_window_data(self, fixed_res: Tuple[int, int], current_res: List[int],
+                           resized_res: Tuple[Union[int, float], Union[int, float]]) -> None:
+        """Only needed for frames that contain entry widgets. Every time the window is resized, this method should be
+        called before the 'update' method. This method can be ignored if the window is not resizable."""
+        self.window_data["fixed_res"] = fixed_res
+        self.window_data["current_res"] = current_res
+        self.window_data["resized_res"] = resized_res
+
     def update_ime_rect(self) -> None:
         for widget in self.child_widgets.values():
             if isinstance(widget, Entry):
@@ -1993,7 +2010,8 @@ class Frame(BaseWidget):
             pointer_events = False
             scrolled_rel_mouse = Mouse.Cursor()
             scrolled_rel_mouse.mouse_leave()  # Dummy mouse object to prevent collision.
-            keyboard_events = []
+            if self.z_index != mouse_obj.get_z_index():
+                keyboard_events = []
         collide = False
         return_values = []
         for widget in self.child_widgets.values():

@@ -2,14 +2,13 @@ from contextlib import suppress
 from typing import *
 import platform
 import pygame.transform
-import pygame.colordict
 with suppress(ImportError):
     from ctypes import windll
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 ORANGE = (255, 160, 20)
 YELLOW = (222, 216, 149)
-GREEN = pygame.colordict.THECOLORS["darkolivegreen1"]
+GREEN = (202, 255, 112)
 BLUE = (26, 134, 219)
 CYAN = (112, 197, 206)
 PURPLE = (177, 29, 209)

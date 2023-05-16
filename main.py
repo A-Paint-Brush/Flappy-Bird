@@ -26,7 +26,7 @@ class MainThread:
         self.monitor_resolution = (self.monitor_info.current_w, self.monitor_info.current_h)
         # endregion
         # region State Variables
-        self.game_state: Literal["menu", "waiting", "started", "dying", "help", "results"] = "menu"
+        self.game_state: Literal["menu", "waiting", "started", "dying", "help", "achievements", "results"] = "menu"
         self.game_run = True
         self.debug = False
         self.rainbow_mode = False
@@ -45,7 +45,7 @@ class MainThread:
         self.special_widgets: Dict[Literal["transition", "settings", "pause", "send_score"], List[Any]] = {}
         self.busy_frame = Dialogs.BusyFrame(self.fixed_resolution, self.font, 100, 125, 19, 90, 250, (205, 205, 205),
                                             (26, 134, 219))
-        self.ui_mgr: Optional[Union[Dialogs.HelpManager, Dialogs.LoseScreen]] = None
+        self.ui_mgr: Optional[Union[Dialogs.HelpManager, Dialogs.LoseScreen, Dialogs.AchievementManager]] = None
         self.key_events = []
         self.display_frame: Optional[Widgets.Frame] = None  # The widget-frame is rendered below the notifiers.
         self.init_menu_frame()
@@ -75,7 +75,7 @@ class MainThread:
         # region Game Objects
         self.background = pygame.image.load(normpath("./Images/Sprites/background.png")).convert_alpha()
         self.mouse_obj = Mouse.Cursor()
-        # Objects z-orders = 1: toast-group, 2: transition, 3: top-level windows, 4: widget-frame, 5: bird (final)
+        # Object z-orders = 1: toast-group, 2: transition, 3: top-level windows, 4: widget-frame, 5: bird (final)
         self.bird = Bird.BirdManager(self.fixed_resolution, z_index=5)
         self.tiles_group = Ground.GroundGroup(self.fixed_resolution)
         self.font_height = 50
@@ -83,12 +83,21 @@ class MainThread:
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
                                          self.kerning)
         self.notifiers = Notifier.ToastGroup(self.fixed_resolution, z_index=1)
-        self.achievement_list = Storage.Achievements()
+        self.achievement_list = Storage.AchievementData()
+        self.achievement_db = Storage.AchievementDB(self.achievement_list.get_achievement_len())
+        data = self.achievement_db.read_data()
+        if data is None:
+            self.achievement_db.set_achievement(-1)
+            error_message = "An OS error occurred while attempting to read user achievement data. Please ensure that "\
+                            "this application has both read and write permission to the directory '{}'."\
+                            .format(self.achievement_db.parent_dir)
+            raise RuntimeError(error_message)
+        self.achievement_list.load_achievements(data, self.achievement_db.set_achievement)
         self.rainbow = Rainbow.Rainbow()
         self.fps_counter = Counters.FPS(self.fixed_resolution)
         # endregion
         # region Timing Control
-        self.fps = 60
+        self.fps = 90
         self.clock = pygame.time.Clock()
         # endregion
         while self.game_run:
@@ -97,6 +106,7 @@ class MainThread:
             self.mouse_obj.reset_scroll()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    self.achievement_db.set_achievement(-1)
                     self.game_run = False
                 elif event.type == pygame.WINDOWENTER:
                     self.mouse_obj.mouse_enter()
@@ -198,7 +208,7 @@ class MainThread:
                 # The mouse will only be able to interact with the widgets if it did not touch any toasts.
                 self.display_frame.update(self.mouse_obj, self.key_events)
             if "pause" not in self.special_widgets:
-                if self.game_state in ("menu", "help", "results"):
+                if self.game_state in ("menu", "help", "achievements", "results"):
                     self.tiles_group.move()
                     self.tiles_group.reset_pos()
                 elif self.game_state in ("waiting", "started", "dying"):
@@ -262,9 +272,10 @@ class MainThread:
             self.game_state = new_state
 
     def init_menu_frame(self) -> None:
-        if self.game_state == "results":
+        if self.game_state in ("help", "achievements", "results"):
             self.ui_mgr = None
-            self.reset_unusable_objects()
+            if self.game_state == "results":
+                self.reset_unusable_objects()
         if "pause" in self.special_widgets:
             self.unpause_game()
             self.special_widgets.pop("pause")
@@ -275,7 +286,7 @@ class MainThread:
         widget_labels = ["Start Game", "How to Play", "Achievements"]
         widget_sizes = [(260, 69), (280, 69), (300, 69)]
         widget_callbacks = [partial(self.schedule_toggle_round, "game"), self.schedule_show_help,
-                            partial(print, "NotImplemented")]
+                            self.schedule_show_achievements]
         padding = 10
         Dialogs.v_pack_buttons(self.fixed_resolution, self.display_frame, widget_labels, widget_sizes,
                                widget_callbacks, self.font, padding)
@@ -313,18 +324,25 @@ class MainThread:
         self.ui_mgr = Dialogs.HelpManager(self.display_frame, self.fixed_resolution, self.font, self.schedule_exit_help)
         self.game_state = "help"
 
+    def init_achievements_frame(self) -> None:
+        self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
+        heading_font = pygame.font.Font(normpath("./Fonts/Arial/bold.ttf"), 25)
+        body_font = pygame.font.Font(normpath("./Fonts/Arial/normal.ttf"), 23)
+        self.ui_mgr = Dialogs.AchievementManager(self.display_frame, self.fixed_resolution, self.font, heading_font,
+                                                 body_font, self.achievement_list.get_achievement_string,
+                                                 partial(self.schedule_toggle_round, "menu"))
+        self.ui_mgr.update_data(self.achievement_list.get_state_data())
+        self.game_state = "achievements"
+
     def init_results_screen(self) -> None:
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
         self.busy_frame.reset_animation()
         self.ui_mgr = Dialogs.LoseScreen(self.display_frame, self.fixed_resolution, self.pipe_group.get_score_obj(),
                                          [partial(self.schedule_toggle_round, "game"),
-                                          partial(self.schedule_toggle_round, "menu")])
+                                          partial(self.schedule_toggle_round, "menu")],
+                                         partial(self.achievement_db.set_achievement, -1))
         self.ui_mgr.start_fetch_data()
         self.game_state = "results"
-
-    def exit_help_frame(self) -> None:
-        self.ui_mgr = None
-        self.init_menu_frame()
 
     def schedule_toggle_round(self, target: Literal["menu", "game"]) -> None:
         if "transition" not in self.special_widgets:
@@ -337,10 +355,15 @@ class MainThread:
             self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
                                                   self.init_help_frame]
 
+    def schedule_show_achievements(self):
+        if "transition" not in self.special_widgets:
+            self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
+                                                  self.init_achievements_frame]
+
     def schedule_exit_help(self) -> None:
         if "transition" not in self.special_widgets:
             self.special_widgets["transition"] = [(self.fixed_resolution[0], self.fixed_resolution[1], 400),
-                                                  self.exit_help_frame]
+                                                  self.init_menu_frame]
 
     def schedule_launch_settings(self) -> None:
         if "settings" not in self.special_widgets:
@@ -415,12 +438,13 @@ class MainThread:
                                                                                   self.current_resolution,
                                                                                   size_only=True))
 
-    @staticmethod
-    def check_key_sequence(sequence_obj: Keyboard.KeySequence,
-                           key_code: int, callback: Callable[[], None]) -> None:
+    def check_key_sequence(self, sequence_obj: Keyboard.KeySequence, key_code: int,
+                           callback: Callable[[], None]) -> None:
         result = sequence_obj.push_key(key_code)
         if result:
             callback()
+            if self.game_state == "achievements":
+                self.ui_mgr.update_data(self.achievement_list.get_state_data())
 
     def toggle_rainbow(self) -> None:
         self.rainbow_mode = not self.rainbow_mode

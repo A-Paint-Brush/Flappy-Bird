@@ -275,8 +275,8 @@ class Label(BaseWidget):
 
 
 class SplitLabel(BaseWidget):
-    def __init__(self, x: int, y: int, lines: Tuple[str, str], wrap_widths: Tuple[int, int], font: pygame.font.Font,
-                 fg: Tuple[int, int, int], bg: Tuple[int, int, int], radius: int, padding: int,
+    def __init__(self, x: Union[int, float], y: Union[int, float], lines: Tuple[str, str], wrap_widths: Tuple[int, int],
+                 font: pygame.font.Font, fg: Tuple[int, int, int], bg: Tuple[int, int, int], radius: int, padding: int,
                  widget_name: str = "!split_label"):
         """Appears as a rounded rect with a line of word-wrapped text on either side horizontally. Great for displaying
         tables with two columns."""
@@ -296,6 +296,31 @@ class SplitLabel(BaseWidget):
         draw_rounded_rect(self.image, (0, 0), (self.width, self.height), radius, bg)
         for line in self.wrapped_lines:
             self.image.blit(line.image, line.rect)
+
+
+class ParagraphRect(BaseWidget):
+    def __init__(self, x: Union[int, float], y: Union[int, float], width: int, radius: int, padding: int,
+                 fg: Tuple[int, int, int], bg: Tuple[int, int, int], heading: str, body: str,
+                 heading_font: pygame.font.Font, body_font: pygame.font.Font, widget_name: str = "!p_rect"):
+        """Displays a heading and a word-wrapped paragraph in a rounded rect."""
+        super().__init__(widget_name)
+        self.x = x
+        self.y = y
+        self.width = width
+        heading_label = Label(padding, padding, heading, fg, self.width - 2 * padding, heading_font,
+                              align="left")
+        body_label = Label(padding, heading_label.rect.bottom + padding, body, fg, self.width - 2 * padding,
+                           body_font, align="left")
+        self.height = body_label.rect.bottom + padding
+        self.image = pygame.Surface((self.width, self.height), flags=pygame.SRCALPHA)
+        self.image.fill((0, 0, 0, 0))
+        draw_rounded_rect(self.image, (0, 0), (self.width, self.height), radius, bg)
+        self.image.blit(heading_label.image, heading_label.rect)
+        self.image.blit(body_label.image, body_label.rect)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def get_size(self) -> Tuple[int, int]:
+        return self.width, self.height
 
 
 class Checkbox(BaseWidget):

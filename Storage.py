@@ -1,3 +1,4 @@
+from functools import partial
 from typing import *
 import threading
 import platform
@@ -14,7 +15,7 @@ user_app_data = {"Windows": "%appdata%/Flappy Bird",
                  "Linux": "~/.flappy_bird"}
 
 
-def get_platform_data_path(purpose: Literal["global", "user"]) -> str:
+def get_platform_data_path(purpose: Literal["global", "user"], kill_thread: Callable[[], None]) -> str:
     current_os = platform.system()
     location = ""
     fail_message = "The application cannot decide on a location to store global (user-independent) application data " \
@@ -25,37 +26,52 @@ def get_platform_data_path(purpose: Literal["global", "user"]) -> str:
     elif purpose == "user":
         location = user_app_data.get(current_os, "~/.flappy_bird")
     if not location:
-        raise NotImplementedError(fail_message)
+        kill_thread()
+        raise RuntimeError(fail_message)
     return os.path.expandvars(os.path.expanduser(os.path.normpath(location)))
 
 
-class Achievements:
+class AchievementData:
     def __init__(self):
-        # Stores the ID of each achievement.
-        self.titles = {0: "The Konami code",
-                       1: "The magic word",
-                       2: "Feeling like rollin'?"}
-        self.body_text = {0: "Except in this game, it doesn't allow you to cheat. Instead you get *rainbow mode* :)\n"
-                             "The effect is only visible when the game screen doesn't fit the window size, so if you "
-                             "don't see anything different, drag the window wider or taller.",
-                          1: "You discovered debug mode! ...But it doesn't allow you to no-clip, it only shows "
-                             "hit-boxes and the FPS.",
-                          2: "Honestly, you typed in \"rickroll\". What were you expecting?"}
-        self.explanation_text = {0: "Type the Konami code anywhere in the game.",
-                                 1: "Type the magic word anywhere in the game.",
-                                 2: "Type \"rickroll\" anywhere in the game."}
+        """Stores the message-string and state of each achievement in memory."""
+        self.titles = ("The Konami code",
+                       "The magic word",
+                       "Feeling like rollin'?")
+        self.body_text = ("Except in this game, it doesn't allow you to cheat. Instead you get *rainbow mode* :)\n"
+                          "The effect is only visible when the game screen doesn't fit the window size, so if you "
+                          "don't see anything different, drag the window wider or taller.",
+                          "You discovered debug mode! ...But it doesn't allow you to no-clip, it only shows "
+                          "hit-boxes and the FPS.",
+                          "Honestly, you typed \"rickroll\". What were you expecting?")
+        self.explanation_text = ("Typed the key sequence \"↑↑↓↓←→←→BA\" anywhere in the game and activated rainbow "
+                                 "mode.",
+                                 "Typed the key sequence \"xyzzy\" anywhere in the game to reveal hit-boxes and the FPS"
+                                 " counter.",
+                                 "Typed the word \"rickroll\" anywhere in the game and got rickrolled.")
         # Stores the IDs of all acquired achievements.
-        self.achievements = []
+        self.achievements: Optional[List[bool]] = None
+        self.db_binding: Optional[Callable[[int], None]] = None
+
+    def load_achievements(self, loaded_data: List[bool], binding: Callable[[int], None]) -> None:
+        self.achievements = loaded_data
+        self.db_binding = binding
 
     def get_new_achievement(self, achievement_id: int) -> Tuple[str, str]:
-        self.achievements.append(achievement_id)
+        self.achievements[achievement_id] = True
+        self.db_binding(achievement_id)
         return self.titles[achievement_id], self.body_text[achievement_id]
 
-    def get_achievement_list(self) -> List[str]:
-        return [self.titles[i] for i in self.achievements]
+    def get_state_data(self) -> List[bool]:
+        return self.achievements
+
+    def get_achievement_string(self, achievement_id: int) -> Tuple[str, str]:
+        return self.titles[achievement_id], self.explanation_text[achievement_id]
 
     def has_achievement(self, achievement_id: int) -> bool:
-        return achievement_id in self.achievements
+        return self.achievements[achievement_id]
+
+    def get_achievement_len(self) -> int:
+        return len(self.titles)
 
 
 class HelpFile:
@@ -94,8 +110,8 @@ class HelpFile:
 
 
 class ScoreDB:
-    def __init__(self):
-        self.dir_path = get_platform_data_path("global")
+    def __init__(self, kill_achievement_thread: Callable[[], None]):
+        self.dir_path = get_platform_data_path("global", kill_achievement_thread)
         self.file_path = os.path.join(self.dir_path, "scoreboard.csv")
         self.encoding = "utf-8"
         self.fields = ("player-name", "score")
@@ -116,7 +132,7 @@ class ScoreDB:
             with open(self.file_path, "w", encoding=self.encoding, newline="") as file:
                 writer = csv.DictWriter(file, self.fields)
                 writer.writeheader()
-        except (OSError, NotImplementedError):
+        except OSError:
             return False
         else:
             return True
@@ -170,3 +186,82 @@ class ScoreDB:
                 writer.writerows(csv_data)
         except OSError:
             return None
+
+
+class AchievementDB:
+    def __init__(self, achievement_length: int):
+        """Synchronizes achievement data with the hard disk."""
+        self.achievement_length = achievement_length
+        self.default_data = [False] * self.achievement_length
+        self.parent_dir = get_platform_data_path("user", partial(self.set_achievement, -1))
+        self.file_path = os.path.join(self.parent_dir, "achievements.bin")
+        self.lock = threading.Lock()
+        self.pending_tasks = queue.Queue()
+        self.writer = threading.Thread(target=self.writer_thread)
+        self.writer.start()
+
+    @staticmethod
+    def encode_booleans(original_booleans: List[bool]) -> bytes:
+        dec_num = int("".join(str(int(i)) for i in original_booleans), base=2)
+        full_bytes, remaining_bits = divmod(len(original_booleans), 8)
+        byte_length = full_bytes + bool(remaining_bits)
+        return dec_num.to_bytes(byte_length, "big")
+
+    @staticmethod
+    def decode_booleans(encoded_bytes: bytes, bool_len: int) -> List[bool]:
+        return [bool(int(binary_digit)) for binary_digit in bin(int(encoded_bytes.hex() or "0",
+                                                                    base=16))[2:bool_len + 2].zfill(bool_len)]
+
+    def ensure_exists(self) -> bool:
+        if os.path.isfile(self.file_path):
+            return True
+        if not os.path.isdir(self.parent_dir):
+            try:
+                os.mkdir(self.parent_dir)
+            except OSError:
+                return False
+        try:
+            with open(self.file_path, "wb") as file:
+                file.write(self.encode_booleans(self.default_data))
+        except OSError:
+            return False
+        else:
+            return True
+
+    def read_data(self) -> Optional[List[bool]]:
+        if not self.ensure_exists():
+            return None
+        try:
+            with open(self.file_path, "rb") as file:
+                data = file.read()
+        except OSError:
+            return None
+        else:
+            return self.decode_booleans(data, self.achievement_length)
+
+    def write_data(self, updated_data: List[bool]) -> None:
+        try:
+            with open(self.file_path, "wb") as file:
+                file.write(self.encode_booleans(updated_data))
+        except OSError:
+            return None
+
+    def set_achievement(self, index: int) -> None:
+        """Schedules user achievement data on the disk to be updated. Pass -1 to end the writer thread."""
+        self.pending_tasks.put(index)
+
+    def writer_thread(self) -> None:
+        while True:
+            index = self.pending_tasks.get()
+            if index == -1:
+                break
+            self.lock.acquire()
+            self.update_data(index)
+            self.lock.release()
+
+    def update_data(self, index: int) -> None:
+        stored_data = self.read_data()
+        if stored_data is None:
+            return None
+        stored_data[index] = True
+        self.write_data(stored_data)

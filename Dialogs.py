@@ -10,6 +10,13 @@ if TYPE_CHECKING:
     import Mouse
 
 
+def calc_button_data(widen_amount: int, original_size: Tuple[int, int]) -> Tuple[Tuple[float, float],
+                                                                                 Tuple[int, float]]:
+    offset_data = Widgets.Button.calc_size(0, original_size[0], original_size[1], widen_amount=widen_amount)
+    true_size = (original_size[0] + widen_amount, abs(offset_data[0]) + offset_data[1])
+    return offset_data, true_size
+
+
 def v_pack_buttons(container_size: Tuple[int, int], widget_frame: Widgets.Frame, widget_labels: List[str],
                    widget_sizes: List[Tuple[int, int]], widget_callbacks: List[Callable[[], None]],
                    font: pygame.font.Font, padding: int, start_y: Optional[int] = None,
@@ -326,7 +333,7 @@ class ScoreBoard(Widgets.Frame):
 
 class LoseScreen:
     def __init__(self, parent_frame: Widgets.Frame, resolution: Tuple[int, int], score: "Counters.Score",
-                 callbacks: List[Callable[[], None]]):
+                 callbacks: List[Callable[[], None]], kill_achievement_thread: Callable[[], None]):
         self.parent_frame = parent_frame
         self.resolution = resolution
         self.large_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 50)
@@ -343,7 +350,7 @@ class LoseScreen:
         scoreboard_size = (250, 200)
         self.scoreboard_rect = pygame.Rect(self.resolution[0] / 2 - scoreboard_size[0] / 2, self.accumulated_y,
                                            scoreboard_size[0], scoreboard_size[1])
-        self.db_thread = Storage.ScoreDB()
+        self.db_thread = Storage.ScoreDB(kill_achievement_thread)
         self.scoreboard_obj: Optional[ScoreBoard] = None
         self.accumulated_y += scoreboard_size[1] + self.padding
         v_pack_buttons(resolution, self.parent_frame, ["Retry", "Main Menu"], [(144, 69), (230, 69)],
@@ -428,7 +435,7 @@ class HelpManager:
         # region Page Controls
         widen_amount = 60
         original_size = (260, 69)
-        offset_data, true_size = self.calc_button_data(widen_amount, original_size)
+        offset_data, true_size = calc_button_data(widen_amount, original_size)
         self.footer_height = true_size[1]
         prev_btn = Widgets.Button(self.padding + widen_amount / 2,
                                   self.resolution[1] - self.padding - true_size[1] + abs(offset_data[0]),
@@ -444,7 +451,7 @@ class HelpManager:
         # region Header Frame
         widen_amount = 45
         original_size = (173, 69)
-        offset_data, true_size = self.calc_button_data(widen_amount, original_size)
+        offset_data, true_size = calc_button_data(widen_amount, original_size)
         self.header_height = max(true_size[1], self.line_height)
         back_btn = Widgets.Button(self.padding + widen_amount / 2,
                                   self.padding + (self.header_height / 2 - true_size[1] / 2) + abs(offset_data[0]),
@@ -463,13 +470,6 @@ class HelpManager:
         self.page_string = "Page {} of {}"
         self.help_data = Storage.HelpFile()
         # endregion
-
-    @staticmethod
-    def calc_button_data(widen_amount: int, original_size: Tuple[int, int]) -> Tuple[Tuple[float, float],
-                                                                                     Tuple[int, float]]:
-        offset_data = Widgets.Button.calc_size(0, original_size[0], original_size[1], widen_amount=widen_amount)
-        true_size = (original_size[0] + widen_amount, abs(offset_data[0]) + offset_data[1])
-        return offset_data, true_size
 
     def update(self) -> None:
         if self.loading:
@@ -511,6 +511,62 @@ class HelpManager:
 
     def is_loading(self) -> bool:
         return self.loading
+
+
+class AchievementFrame(Widgets.Frame):
+    def __init__(self, x: int, y: int, width: int, height: int, radius: int, padding: int, achievement_data: List[bool],
+                 string_callback: Callable[[int], Tuple[str, str]], heading_font: pygame.font.Font,
+                 body_font: pygame.font.Font, fg: Tuple[int, int, int], div_bg: Tuple[int, int, int, int],
+                 active_bg: Tuple[int, int, int], locked_bg: Tuple[int, int, int], z_index: int = 1,
+                 widget_name: str = "!achievement_frame"):
+        super().__init__(x, y, width, height, padding, bg=div_bg, z_index=z_index, widget_name=widget_name)
+        scrollbar_width = 20
+        accumulated_y = padding
+        for index, achievement in enumerate(achievement_data):
+            if achievement:
+                strings = string_callback(index)
+            else:
+                strings = ("Locked Achievement", "I wonder what this could be...")
+            div = Widgets.ParagraphRect(padding, accumulated_y, width - scrollbar_width - 2 * padding, radius, padding,
+                                        fg, active_bg if achievement else locked_bg, strings[0], strings[1],
+                                        heading_font, body_font, widget_name="!p_rect{}".format(index))
+            accumulated_y += div.get_size()[1] + padding
+            self.add_widget(div)
+        self.add_widget(Widgets.ScrollBar(width=scrollbar_width))
+
+
+class AchievementManager:
+    def __init__(self, parent_frame: Widgets.Frame, resolution: Tuple[int, int], button_font: pygame.font.Font,
+                 heading_font: pygame.font.Font, body_font: pygame.font.Font,
+                 string_callback: Callable[[int], Tuple[str, str]], exit_callback: Callable[[], None]):
+        self.parent_frame = parent_frame
+        self.heading_font = heading_font
+        self.body_font = body_font
+        self.string_callback = string_callback
+        padding = 15
+        widen_amount = 45
+        original_size = (173, 69)
+        offset_data, true_size = calc_button_data(widen_amount, original_size)
+        back_btn = Widgets.Button(padding + widen_amount / 2,
+                                  padding + abs(offset_data[0]),
+                                  original_size[0], original_size[1], 1, BLACK, ORANGE, button_font, "◄ Back",
+                                  exit_callback, widen_amount=widen_amount, widget_name="!back_btn")
+        self.parent_frame.add_widget(back_btn)
+        content_y = 2 * padding + true_size[1]
+        self.content_rect = pygame.Rect(padding, content_y, resolution[0] - 2 * padding,
+                                        resolution[1] - content_y - padding)
+        self.content_obj: Optional[AchievementFrame] = None
+        self.content_id = "!achievement_frame"
+
+    def update_data(self, state_data: List[bool]) -> None:
+        if self.content_obj is not None:
+            self.parent_frame.delete_widget(self.content_id)
+        self.content_obj = AchievementFrame(self.content_rect.x, self.content_rect.y, self.content_rect.width,
+                                            self.content_rect.height, 15, 10, state_data, self.string_callback,
+                                            self.heading_font, self.body_font, BLACK, (249, 152, 40, 123),
+                                            (140, 183, 255), (224, 238, 224), self.parent_frame.z_index,
+                                            widget_name=self.content_id)
+        self.parent_frame.add_widget(self.content_obj)
 
 
 class BusyFrame:

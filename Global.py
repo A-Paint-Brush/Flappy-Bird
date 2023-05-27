@@ -1,5 +1,6 @@
 from contextlib import suppress
 from typing import *
+from os import path
 import platform
 import pygame.transform
 with suppress(ImportError):
@@ -20,6 +21,11 @@ GREY5 = (166, 166, 166)
 GREY6 = (96, 96, 96)
 BLACK = (0, 0, 0)
 TRANSPARENT = (1, 1, 1)  # The color used as the transparent color-key throughout the project.
+
+
+def find_abs_path(rel_path: str) -> str:
+    """Returns absolute version of the relative path given regardless of working directory."""
+    return path.abspath(path.join(path.dirname(__file__), path.normpath(rel_path)))
 
 
 def collide_function(sprite1: pygame.sprite.Sprite, sprite2: pygame.sprite.Sprite) -> bool:

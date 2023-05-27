@@ -1,4 +1,3 @@
-from os.path import normpath
 from Global import *
 import Counters
 import Time
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
 class Pipe(pygame.sprite.Sprite):
     def __init__(self, x_pos: int, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__()
-        self.pipe_image = pygame.image.load(normpath("./Images/Sprites/pipe.png")).convert_alpha()
+        self.pipe_image = pygame.image.load(find_abs_path("./Images/Sprites/pipe.png")).convert_alpha()
         self.width, self.height = self.pipe_image.get_size()
         self.resolution = list(resolution)
         self.resolution[1] -= ground_size[1]

@@ -1,5 +1,5 @@
+#! /usr/bin/env python
 from functools import partial
-from os.path import normpath
 from Global import *
 import Mouse
 import Widgets
@@ -34,21 +34,20 @@ class MainThread:
         # endregion
         # region Assets Storage
         self.audio_objects: Dict[str, pygame.mixer.Sound] = {
-            "rickroll": pygame.mixer.Sound(normpath("./Sounds/Rickroll.wav"))
+            "rickroll": pygame.mixer.Sound(find_abs_path("./Sounds/Rickroll.wav"))
         }
         self.volume = 100
         self.resized_surface = pygame.Surface(self.fixed_resolution)
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        self.font = pygame.font.Font(normpath("./Fonts/Arial/normal.ttf"), 35)
+        self.font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 35)
         self.special_widgets: Dict[Literal["transition", "settings", "pause", "send_score"], List[Any]] = {}
         self.busy_frame = Dialogs.BusyFrame(self.fixed_resolution, self.font, 100, 125, 19, 90, 250, (205, 205, 205),
                                             (26, 134, 219))
         self.ui_mgr: Optional[Union[Dialogs.HelpManager, Dialogs.LoseScreen, Dialogs.AchievementManager]] = None
         self.key_events = []
         self.display_frame: Optional[Widgets.Frame] = None  # The widget-frame is rendered below the notifiers.
-        self.init_menu_frame()
         # endregion
         # region Key Sequences
         self.key_table: Dict[str, int] = {"↑": pygame.K_UP, "↓": pygame.K_DOWN, "←": pygame.K_LEFT, "→": pygame.K_RIGHT}
@@ -64,6 +63,7 @@ class MainThread:
         # endregion
         # region Window Creation
         pygame.display.set_caption("Flappy Bird")
+        pygame.display.set_icon(pygame.image.load(find_abs_path("./Images/Icons/window_icon.png")))
         self.display = pygame.display.set_mode(self.fixed_resolution, pygame.RESIZABLE)
         self.listen_events = (pygame.QUIT, pygame.WINDOWFOCUSLOST, pygame.WINDOWENTER, pygame.WINDOWLEAVE,
                               pygame.VIDEORESIZE, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL,
@@ -73,7 +73,11 @@ class MainThread:
         pygame.key.stop_text_input()
         # endregion
         # region Game Objects
-        self.background = pygame.image.load(normpath("./Images/Sprites/background.png")).convert_alpha()
+        self.icons = {}
+        for image in ("pause_icon", "settings_icon", "toggle_fullscreen_icon", "trophy"):
+            self.icons[image] = pygame.image.load(find_abs_path("./Images/Icons/{}.png".format(image))).convert_alpha()
+        self.init_menu_frame()
+        self.background = pygame.image.load(find_abs_path("./Images/Sprites/background.png")).convert_alpha()
         self.mouse_obj = Mouse.Cursor()
         # Object z-orders = 1: toast-group, 2: transition, 3: top-level windows, 4: widget-frame, 5: bird (final)
         self.bird = Bird.BirdManager(self.fixed_resolution, z_index=5)
@@ -82,7 +86,7 @@ class MainThread:
         self.kerning = 5
         self.pipe_group = Pipe.PipeGroup(self.fixed_resolution, self.tiles_group.get_size(), self.font_height,
                                          self.kerning)
-        self.notifiers = Notifier.ToastGroup(self.fixed_resolution, z_index=1)
+        self.notifiers = Notifier.ToastGroup(self.fixed_resolution, self.icons["trophy"], z_index=1)
         self.achievement_list = Storage.AchievementData()
         self.achievement_db = Storage.AchievementDB(self.achievement_list.get_achievement_len())
         data = self.achievement_db.read_data()
@@ -293,7 +297,7 @@ class MainThread:
         # endregion
         # region Horizontal Buttons
         widen_amount = 20
-        widget_surfaces = [pygame.Surface((65, 65)), pygame.Surface((65, 65))]
+        widget_surfaces = [self.icons["settings_icon"], self.icons["toggle_fullscreen_icon"]]
         widget_callbacks = [self.schedule_launch_settings, self.toggle_full_screen]
         Dialogs.h_pack_buttons_se(self.fixed_resolution, self.display_frame, widget_surfaces, widget_callbacks,
                                   padding, widen_amount)
@@ -308,7 +312,7 @@ class MainThread:
             self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
             padding = 10
             widen_amount = 20
-            widget_surfaces = [pygame.Surface((65, 65))]
+            widget_surfaces = [self.icons["pause_icon"]]
             widget_callbacks = [self.schedule_pause_game]
             Dialogs.h_pack_buttons_se(self.fixed_resolution, self.display_frame, widget_surfaces, widget_callbacks,
                                       padding, widen_amount)
@@ -326,8 +330,8 @@ class MainThread:
 
     def init_achievements_frame(self) -> None:
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
-        heading_font = pygame.font.Font(normpath("./Fonts/Arial/bold.ttf"), 25)
-        body_font = pygame.font.Font(normpath("./Fonts/Arial/normal.ttf"), 23)
+        heading_font = pygame.font.Font(find_abs_path("./Fonts/Arial/bold.ttf"), 25)
+        body_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 23)
         self.ui_mgr = Dialogs.AchievementManager(self.display_frame, self.fixed_resolution, self.font, heading_font,
                                                  body_font, self.achievement_list.get_achievement_string,
                                                  partial(self.schedule_toggle_round, "menu"))
@@ -377,9 +381,10 @@ class MainThread:
             widget_size = (375, 250)
             padding = 20
             self.special_widgets["pause"] = [(self.display_surface, self.fixed_resolution, widget_size, 19, 19, 10, 4,
-                                              0.05, widget_size[0] - 2 * padding, self.volume,
-                                              [partial(self.schedule_toggle_round, "menu"),
-                                               self.toggle_full_screen], 3)]
+                                              self.icons["toggle_fullscreen_icon"], 0.05, widget_size[0] - 2 * padding,
+                                              self.volume,
+                                              [partial(self.schedule_toggle_round, "menu"), self.toggle_full_screen],
+                                              3)]
             self.pause_game()
 
     def schedule_submit_score(self) -> None:

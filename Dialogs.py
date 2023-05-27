@@ -4,7 +4,6 @@ import Storage
 import Widgets
 import getpass
 import pygame
-import os
 if TYPE_CHECKING:
     import Counters
     import Mouse
@@ -97,8 +96,8 @@ class BaseDialog:
         self.button_thickness = button_thickness
         self.animation_speed = animation_speed
         self.z_index = z_index
-        self.small_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 25)
-        self.large_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 35)
+        self.small_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 25)
+        self.large_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 35)
         self.height_difference = self.border_radius * 2 + button_length + button_padding
         self.frame_size = [max_window_size[0] - self.border_radius * 2,
                            max_window_size[1] - self.height_difference]
@@ -206,8 +205,8 @@ class Settings(BaseDialog):
 class Pause(BaseDialog):
     def __init__(self, surface: pygame.Surface, resolution: Tuple[int, int], max_window_size: Tuple[int, int],
                  border_radius: int, button_length: int, button_padding: int, button_thickness: int,
-                 animation_speed: Union[int, float], max_widget_width: int, current_volume: int,
-                 callbacks: List[Callable[[], None]], z_index: int = 1):
+                 full_screen_icon: pygame.Surface, animation_speed: Union[int, float], max_widget_width: int,
+                 current_volume: int, callbacks: List[Callable[[], None]], z_index: int = 1):
         super().__init__(surface, resolution, max_window_size, border_radius, button_length, button_padding,
                          button_thickness, animation_speed, max_widget_width, z_index)
         vertical_padding = 20
@@ -223,7 +222,7 @@ class Pause(BaseDialog):
         self.slider = self.create_slider(31, 100, 13, 10, vertical_padding // 2)
         self.slider.set_slider_value(current_volume)
         data = h_pack_buttons_se((max_widget_width, 0), self.content_frame,
-                                 [pygame.Surface((65, 65))],
+                                 [full_screen_icon],
                                  [callbacks[1]],
                                  vertical_padding, 20, self.accumulated_y, self.widget_id)
         self.widget_id = data[0]
@@ -241,8 +240,8 @@ class SubmitScore(BaseDialog):
                  z_index: int = 1):
         super().__init__(surface, resolution, max_window_size, border_radius, button_length, button_padding,
                          button_thickness, animation_speed, max_widget_width, z_index)
-        self.label_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 22)
-        self.entry_font = pygame.font.Font(os.path.normpath("./Fonts/JhengHei/normal.ttc"), 20)
+        self.label_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 22)
+        self.entry_font = pygame.font.Font(find_abs_path("./Fonts/JhengHei/normal.ttc"), 20)
         self.submitted = False
         self.callback = callback
         vertical_padding = 10
@@ -336,8 +335,8 @@ class LoseScreen:
                  callbacks: List[Callable[[], None]], kill_achievement_thread: Callable[[], None]):
         self.parent_frame = parent_frame
         self.resolution = resolution
-        self.large_font = pygame.font.Font(os.path.normpath("./Fonts/Arial/normal.ttf"), 50)
-        self.small_font = pygame.font.Font(os.path.normpath("./Fonts/JhengHei/normal.ttc"), 16)
+        self.large_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 50)
+        self.small_font = pygame.font.Font(find_abs_path("./Fonts/JhengHei/normal.ttc"), 16)
         self.score = score
         self.state: Literal["idle", "fetching", "writing"] = "idle"
         self.widget_id = 1

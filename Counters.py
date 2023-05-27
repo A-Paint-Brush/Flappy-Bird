@@ -1,4 +1,3 @@
-from os.path import normpath
 from Global import *
 import pygame
 import Time
@@ -10,7 +9,7 @@ class FPS(pygame.sprite.Sprite):
         last 10 frames."""
         super().__init__()
         self.resolution = resolution
-        self.font = pygame.font.Font(normpath("./Fonts/Arial/normal.ttf"), 25)
+        self.font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 25)
         self.frame_timer = Time.Time()
         self.frame_timer.reset_timer()
         self.fps_data = []
@@ -60,7 +59,7 @@ class Score:
         self.digit_images = []
         self.score = 0
         for i in range(10):
-            image = pygame.image.load(normpath("./Images/Digits/{}.png".format(i))).convert_alpha()
+            image = pygame.image.load(find_abs_path("./Images/Digits/{}.png".format(i))).convert_alpha()
             if image.get_height() != self.font_height:
                 new_size = (self.font_height * (image.get_width() / image.get_height()), self.font_height)
                 image = pygame.transform.scale(image, new_size)

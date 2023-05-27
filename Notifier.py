@@ -1,4 +1,3 @@
-from os.path import normpath
 from Global import *
 import Time
 import pygame
@@ -7,13 +6,13 @@ if TYPE_CHECKING:
 
 
 class ToastNotifier(pygame.sprite.Sprite):
-    def __init__(self, resolution: Tuple[int, int], y_pos: int, message_title: str, message_text: str, toast_id: int):
+    def __init__(self, resolution: Tuple[int, int], icon: pygame.Surface, y_pos: int, message_title: str,
+                 message_text: str, toast_id: int):
         super().__init__()
         self.id = toast_id
-        self.title_font = pygame.font.Font(normpath("./Fonts/Arial/bold.ttf"), 25)
-        self.body_font = pygame.font.Font(normpath("./Fonts/Arial/normal.ttf"), 23)
-        self.icon_img = pygame.Surface((63, 63))
-        self.icon_img.fill(BLACK)
+        self.title_font = pygame.font.Font(find_abs_path("./Fonts/Arial/bold.ttf"), 25)
+        self.body_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 23)
+        self.icon_img = icon
         self.image_padding = 15
         self.resolution = resolution
         self.x = self.resolution[0]
@@ -163,21 +162,20 @@ class ToastNotifier(pygame.sprite.Sprite):
 
 
 class ToastGroup(pygame.sprite.Group):
-    def __init__(self, resolution: Tuple[int, int], z_index: int):
+    def __init__(self, resolution: Tuple[int, int], toast_icon: pygame.Surface, z_index: int):
         super().__init__()
         self.z_index = z_index
         self.resolution = resolution
+        self.toast_icon = toast_icon
         self.toasts = []
         self.padding = 10
         self.assign_id = 0  # The ID to assign to the next new toast notifier
         self.last_interacted_obj = None  # Stores the toast that was most recently interacted with by the mouse
 
     def create_toast(self, toast_title: str, toast_text: str) -> None:
-        new_toast = ToastNotifier(self.resolution,
+        new_toast = ToastNotifier(self.resolution, self.toast_icon,
                                   (self.padding * (len(self.toasts) + 1)
-                                   + sum(toast.get_size()[1] for toast in self.toasts)),
-                                  toast_title,
-                                  toast_text,
+                                   + sum(toast.get_size()[1] for toast in self.toasts)), toast_title, toast_text,
                                   self.assign_id)
         self.toasts.append(new_toast)
         self.add(new_toast)

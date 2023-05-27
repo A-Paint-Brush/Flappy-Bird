@@ -1,3 +1,4 @@
+from Global import find_abs_path
 from functools import partial
 from typing import *
 import threading
@@ -76,7 +77,7 @@ class AchievementData:
 
 class HelpFile:
     def __init__(self):
-        self.file_path = os.path.normpath("./Help/Instructions.txt")
+        self.file_path = find_abs_path("./Help/Instructions.txt")
         self.encoding = "utf-8"
         self.error_text = ("Failed to load instructions :(\n\nThis could be because the help file has been "
                            "moved/deleted, the OS or an anti-virus program is blocking this game from accessing it, or "

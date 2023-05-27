@@ -1,4 +1,3 @@
-from os.path import normpath
 from Global import *
 import Physics
 import Time
@@ -14,7 +13,7 @@ class Bird(pygame.sprite.Sprite):
     def __init__(self, resolution: Tuple[int, int], ground_size: Tuple[int, int]):
         super().__init__()
         # region Costume Data
-        self.costumes = tuple(pygame.image.load(normpath("./Images/Sprites/{}".format(file)))
+        self.costumes = tuple(pygame.image.load(find_abs_path("./Images/Sprites/{}".format(file)))
                               .convert_alpha() for file in ("flap down.png", "flap middle.png", "flap up.png"))
         self.image = self.costumes[0]
         self.costume_index = 0

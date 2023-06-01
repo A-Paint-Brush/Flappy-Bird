@@ -1,0 +1,444 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<!--candle Installer.wxs -ext WixUIExtension && light Installer.wixobj -ext WixUIExtension-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Name="Flappy Bird" Manufacturer="A-Paint-Brush" Id="96CC427D-2547-4334-9674-2B211C6EA703" UpgradeCode="01F4EF64-FBDE-494E-BD58-8D97E631C22B" Language="1033" Codepage="1252" Version="1.0.0">
+        <Package Id="*" Keywords="Installer" Description="This installer will install &quot;Flappy Bird&quot; on your device." Manufacturer="A-Paint-Brush" InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
+        <Media Id="1" Cabinet="Package.cab" EmbedCab="yes" />
+        <Icon Id="icon.ico" SourceFile="..\Unused Assets\Window Icons\exe_icon.ico" />
+        <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLDIR" Name="Flappy Bird">
+                    <Directory Id="Fonts" Name="Fonts">
+                        <Directory Id="Arial" Name="Arial">
+                            <Component Id="font1_comp1" Guid="63576B93-5A69-4C4F-802A-E63B2F3024CF">
+                                <File Id="ttf1" Name="bold.ttf" DiskId="1" Source=".\Flappy Bird\Fonts\Arial\bold.ttf" KeyPath="yes" />
+                            </Component>
+                            <Component Id="font1_comp2" Guid="F85B7F0E-C185-43BF-8198-62F52582FD77">
+                                <File Id="ttf2" Name="normal.ttf" DiskId="1" Source=".\Flappy Bird\Fonts\Arial\normal.ttf" KeyPath="yes" />
+                            </Component>
+                        </Directory>
+                        <Directory Id="JhengHei" Name="JhengHei">
+                            <Component Id="font2_comp1" Guid="BE6643DA-B0FF-4EF6-A1B2-09EAFE5C4FC1">
+                                <File Id="ttc1" Name="normal.ttc" DiskId="1" Source=".\Flappy Bird\Fonts\JhengHei\normal.ttc" KeyPath="yes" />
+                            </Component>
+                        </Directory>
+                    </Directory>
+                    <Directory Id="Help" Name="Help">
+                        <Component Id="help_comp1" Guid="400A0574-56E0-47C4-97DC-22FC0E9DFDCC">
+                            <File Id="txt1" Name="Instructions.txt" DiskId="1" Source=".\Flappy Bird\Help\Instructions.txt" KeyPath="yes" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="Images" Name="Images">
+                        <Directory Id="Digits" Name="Digits">
+                            <Component Id="digits_comp1" Guid="2160B20B-D776-422C-8EC9-CA9329E695D3">
+                                <File Id="png1" Name="0.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\0.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp2" Guid="9E311478-D654-4641-BA09-27F6C61BF4C7">
+                                <File Id="png2" Name="1.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\1.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp3" Guid="57DC29DC-47A3-49FA-842C-BDC16B39C5E3">
+                                <File Id="png3" Name="2.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\2.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp4" Guid="F6619F3B-0C21-4507-9285-3EC094B77F9C">
+                                <File Id="png4" Name="3.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\3.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp5" Guid="77F53BB4-623F-4D2C-8550-9AED0713E249">
+                                <File Id="png5" Name="4.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\4.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp6" Guid="AEF2E033-5474-4B84-8D5E-9DF24E96359B">
+                                <File Id="png6" Name="5.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\5.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp7" Guid="ED30FBD8-8ADE-498A-BD91-BC447BD15FDF">
+                                <File Id="png7" Name="6.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\6.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp8" Guid="01D6AE0D-6009-4C17-85AA-3EBCF95D4794">
+                                <File Id="png8" Name="7.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\7.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp9" Guid="822DBFB5-D818-494A-A377-F2A27CCC07EC">
+                                <File Id="png9" Name="8.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\8.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="digits_comp10" Guid="0E722076-B3D9-4533-880B-B9F10540481E">
+                                <File Id="png10" Name="9.png" DiskId="1" Source=".\Flappy Bird\Images\Digits\9.png" KeyPath="yes" />
+                            </Component>
+                        </Directory>
+                        <Directory Id="Icons" Name="Icons">
+                            <Component Id="icons_comp1" Guid="3624E51C-6390-4335-8550-0AEFDA768FE9">
+                                <File Id="png11" Name="pause_icon.png" DiskId="1" Source=".\Flappy Bird\Images\Icons\pause_icon.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="icons_comp2" Guid="7CF78A97-E70B-4B8F-B9B3-7E1E5EF160EC">
+                                <File Id="png12" Name="settings_icon.png" DiskId="1" Source=".\Flappy Bird\Images\Icons\settings_icon.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="icons_comp3" Guid="9650DE6B-419B-4D99-91E0-4BE34DF29354">
+                                <File Id="png13" Name="toggle_fullscreen_icon.png" DiskId="1" Source=".\Flappy Bird\Images\Icons\toggle_fullscreen_icon.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="icons_comp4" Guid="F11D7864-C396-4DBF-8A09-4F863016E83A">
+                                <File Id="png14" Name="trophy.png" DiskId="1" Source=".\Flappy Bird\Images\Icons\trophy.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="icons_comp5" Guid="529D5F02-EEDD-40B5-89EA-36132DE32AAC">
+                                <File Id="png15" Name="window_icon.png" DiskId="1" Source=".\Flappy Bird\Images\Icons\window_icon.png" KeyPath="yes" />
+                            </Component>
+                        </Directory>
+                        <Directory Id="Sprites" Name="Sprites">
+                            <Component Id="sprites_comp1" Guid="F9E55D90-A8EA-4033-89B3-3E3724A31774">
+                                <File Id="png16" Name="background.png" DiskId="1" Source=".\Flappy Bird\Images\Sprites\background.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="sprites_comp2" Guid="A2806410-993B-4A78-9DB4-26E4DF947066">
+                                <File Id="png17" Name="flap down.png" DiskId="1" Source=".\Flappy Bird\Images\Sprites\flap down.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="sprites_comp3" Guid="045D18A8-5317-4D6B-B0A2-AAC8EF3D9654">
+                                <File Id="png18" Name="flap middle.png" DiskId="1" Source=".\Flappy Bird\Images\Sprites\flap middle.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="sprites_comp4" Guid="3D3ECC18-914C-485F-96CD-F997337ECA17">
+                                <File Id="png19" Name="flap up.png" DiskId="1" Source=".\Flappy Bird\Images\Sprites\flap up.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="sprites_comp5" Guid="15A0B0B6-F062-4CAD-B762-8D8ACB64984D">
+                                <File Id="png20" Name="ground.png" DiskId="1" Source=".\Flappy Bird\Images\Sprites\ground.png" KeyPath="yes" />
+                            </Component>
+                            <Component Id="sprites_comp6" Guid="B8961873-64BF-444F-9BB8-71F6DEB07482">
+                                <File Id="png21" Name="pipe.png" DiskId="1" Source=".\Flappy Bird\Images\Sprites\pipe.png" KeyPath="yes" />
+                            </Component>
+                        </Directory>
+                    </Directory>
+                    <Directory Id="Sounds" Name="Sounds">
+                        <Component Id="sounds_comp1" Guid="9435BB8E-F5B3-4C49-88A9-F0C821CC1CA8">
+                            <File Id="wav1" Name="Rickroll.wav" DiskId="1" Source=".\Flappy Bird\Sounds\Rickroll.wav" KeyPath="yes" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="pygame" Name="pygame">
+                        <Component Id="pygame_comp1" Guid="07795B8A-B0EB-4440-9BDD-C07DE6EFBDB4">
+                            <File Id="pg_pyd1" Name="_freetype.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\_freetype.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp2" Guid="62A03220-DDA7-42B4-A39E-E8A5B0ADA2B7">
+                            <File Id="pg_pyd2" Name="base.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\base.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp3" Guid="59A6EF43-0D8A-4AF5-B42F-028AE5FB570B">
+                            <File Id="pg_pyd3" Name="bufferproxy.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\bufferproxy.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp4" Guid="75AB691E-C1F3-468C-8E96-139502611C50">
+                            <File Id="pg_pyd4" Name="color.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\color.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp5" Guid="66C23F5B-3766-45F2-86B7-342768723936">
+                            <File Id="pg_pyd5" Name="constants.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\constants.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp6" Guid="AFE5AF36-F66E-411E-A7F2-9310FF5D942F">
+                            <File Id="pg_pyd6" Name="display.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\display.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp7" Guid="0E83D860-F89D-4E2E-BDA0-F97D3A7F96D7">
+                            <File Id="pg_pyd7" Name="draw.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\draw.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp8" Guid="4F262C44-B096-4F7C-B963-46E320031541">
+                            <File Id="pg_pyd8" Name="event.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\event.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp9" Guid="975D2AFF-7C17-4B05-AFBB-4CBC95664E69">
+                            <File Id="pg_pyd9" Name="font.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\font.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp10" Guid="0B3CEB94-B457-4557-A504-B22B37EFD255">
+                            <File Id="pg_pyd10" Name="image.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\image.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp11" Guid="34538A67-59EC-4089-BE2E-6FF20C5945EE">
+                            <File Id="pg_pyd11" Name="imageext.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\imageext.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp12" Guid="259E069E-59D8-4E97-A0B1-55F5C5CB56C0">
+                            <File Id="pg_pyd12" Name="joystick.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\joystick.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp13" Guid="4406078C-E4A5-4C7A-B47D-60FE25D408A1">
+                            <File Id="pg_pyd13" Name="key.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\key.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp14" Guid="3F707DAB-6C64-43C7-8FDF-F2950E0A8400">
+                            <File Id="pg_pyd14" Name="mask.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\mask.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp15" Guid="A61D528B-4F69-4C5F-ABF5-5B9BA8513FA0">
+                            <File Id="pg_pyd15" Name="math.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\math.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp16" Guid="755B3015-4BBC-4B7E-B01D-6D7DB47FF3E1">
+                            <File Id="pg_pyd16" Name="mixer.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\mixer.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp17" Guid="B944CC31-0A90-4767-B9CC-384CEF84A7B7">
+                            <File Id="pg_pyd17" Name="mixer_music.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\mixer_music.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp18" Guid="5F96B18E-DAD1-42CE-A733-26ABDA68CAD4">
+                            <File Id="pg_pyd18" Name="mouse.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\mouse.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp19" Guid="E2957200-7544-444F-B07D-EB72362B3752">
+                            <File Id="pg_pyd19" Name="pixelarray.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\pixelarray.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp20" Guid="568A71D2-6C67-4AE5-8E82-9F607BB48737">
+                            <File Id="pg_pyd20" Name="pixelcopy.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\pixelcopy.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp21" Guid="90860784-DB68-476A-A542-41DBBCAEA333">
+                            <File Id="pg_pyd21" Name="rect.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\rect.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp22" Guid="2EEA5938-BA93-43E5-AE9C-5B2403B0ABC7">
+                            <File Id="pg_pyd22" Name="rwobject.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\rwobject.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp23" Guid="14C52D24-E3BB-4A75-BBF2-A40928B2CBBD">
+                            <File Id="pg_pyd23" Name="scrap.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\scrap.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp24" Guid="16648405-6991-4004-B46F-4652D3D6E56C">
+                            <File Id="pg_pyd24" Name="surface.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\surface.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp25" Guid="4D12E626-9448-4ED3-9B56-DD8F8829BF40">
+                            <File Id="pg_pyd25" Name="surflock.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\surflock.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp26" Guid="B1E82BE5-EA04-443B-838C-6EBB89657A89">
+                            <File Id="pg_pyd26" Name="time.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\time.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp27" Guid="7F73BEBF-5694-4F54-8C5A-1B8BDE0A011F">
+                            <File Id="pg_pyd27" Name="transform.cp39-win_amd64.pyd" DiskId="1" Source=".\Flappy Bird\pygame\transform.cp39-win_amd64.pyd" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp28" Guid="652CB6A4-DACB-4339-B7A6-EA0EA3082042">
+                            <File Id="pg_dll1" Name="SDL2.dll" DiskId="1" Source=".\Flappy Bird\pygame\SDL2.dll" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp29" Guid="2F93B9BE-D8DE-499D-A342-A3E53A5EFD05">
+                            <File Id="pg_dll2" Name="libfreetype-6.dll" DiskId="1" Source=".\Flappy Bird\pygame\libfreetype-6.dll" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp30" Guid="E59F7AA4-C646-426B-8B6A-C5C809EDF167">
+                            <File Id="pg_dll3" Name="libjpeg-9.dll" DiskId="1" Source=".\Flappy Bird\pygame\libjpeg-9.dll" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp31" Guid="378666D7-1072-4E98-82FC-CF63A1AC4983">
+                            <File Id="pg_dll4" Name="libogg-0.dll" DiskId="1" Source=".\Flappy Bird\pygame\libogg-0.dll" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp32" Guid="65135B79-9597-4F56-928B-A6880DA256A3">
+                            <File Id="pg_dll5" Name="zlib1.dll" DiskId="1" Source=".\Flappy Bird\pygame\zlib1.dll" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp33" Guid="B1E46A59-686D-4D7E-9AE7-97755DF5B683">
+                            <File Id="pg_ttf1" Name="freesansbold.ttf" DiskId="1" Source=".\Flappy Bird\pygame\freesansbold.ttf" KeyPath="yes" />
+                        </Component>
+                        <Component Id="pygame_comp34" Guid="5CC06CBD-FB41-481D-8866-D6F13D4AB7E2">
+                            <File Id="pg_bmp1" Name="pygame_icon.bmp" DiskId="1" Source=".\Flappy Bird\pygame\pygame_icon.bmp" KeyPath="yes" />
+                        </Component>
+                    </Directory>
+                    <Component Id="root_comp1" Guid="01B0714B-150B-4B05-9069-B1EE8BAA4182">
+                        <File Id="pyd1" Name="_bz2.pyd" DiskId="1" Source=".\Flappy Bird\_bz2.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp2" Guid="DC9882A7-7A5D-4E78-9467-D075A1C90BF4">
+                        <File Id="pyd2" Name="_ctypes.pyd" DiskId="1" Source=".\Flappy Bird\_ctypes.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp3" Guid="E9C29563-25C1-4F12-A4CD-1B87B3226EA5">
+                        <File Id="pyd3" Name="_decimal.pyd" DiskId="1" Source=".\Flappy Bird\_decimal.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp4" Guid="26E75340-5D31-418C-B206-A6A9AB70BB16">
+                        <File Id="pyd4" Name="_hashlib.pyd" DiskId="1" Source=".\Flappy Bird\_hashlib.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp5" Guid="AB965F57-AF90-4D31-830E-EBA067120976">
+                        <File Id="pyd5" Name="_lzma.pyd" DiskId="1" Source=".\Flappy Bird\_lzma.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp6" Guid="104869A2-A6FF-4BA6-B6D8-587F6F08756D">
+                        <File Id="pyd6" Name="_queue.pyd" DiskId="1" Source=".\Flappy Bird\_queue.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp7" Guid="D856F083-A1BA-4276-8162-18A7A02409D5">
+                        <File Id="pyd7" Name="_socket.pyd" DiskId="1" Source=".\Flappy Bird\_socket.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp8" Guid="F0CE5031-4849-4119-8809-6180BDE3BE61">
+                        <File Id="pyd8" Name="_ssl.pyd" DiskId="1" Source=".\Flappy Bird\_ssl.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp9" Guid="2D05E9BF-F8BD-45AB-85BE-BA1D501F3A1C">
+                        <File Id="pyd9" Name="pyexpat.pyd" DiskId="1" Source=".\Flappy Bird\pyexpat.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp10" Guid="71BBEA60-F2C5-4537-AEFB-3E667AEBA92E">
+                        <File Id="pyd10" Name="select.pyd" DiskId="1" Source=".\Flappy Bird\select.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp11" Guid="68D47F97-CB3C-4142-8B37-99D2EF3C3832">
+                        <File Id="pyd11" Name="unicodedata.pyd" DiskId="1" Source=".\Flappy Bird\unicodedata.pyd" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp12" Guid="A3AA954A-C448-4100-A9E7-66E7089FBCE2">
+                        <File Id="dll1" Name="SDL2.dll" DiskId="1" Source=".\Flappy Bird\SDL2.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp13" Guid="2C3CA2AF-7590-4753-BDB9-EDF408479888">
+                        <File Id="dll2" Name="SDL2_image.dll" DiskId="1" Source=".\Flappy Bird\SDL2_image.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp14" Guid="C5C8DA45-17ED-4C62-98FD-75FD4D188C04">
+                        <File Id="dll3" Name="SDL2_mixer.dll" DiskId="1" Source=".\Flappy Bird\SDL2_mixer.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp15" Guid="27FD2996-07D1-4843-BC71-485CAA7FD46B">
+                        <File Id="dll4" Name="SDL2_ttf.dll" DiskId="1" Source=".\Flappy Bird\SDL2_ttf.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp16" Guid="D30E8AE8-75A2-4494-B5C2-48AEA1283DA8">
+                        <File Id="dll5" Name="VCRUNTIME140.dll" DiskId="1" Source=".\Flappy Bird\VCRUNTIME140.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp17" Guid="BCD54E69-2828-4627-AEB3-99EF4AD18BC7">
+                        <File Id="dll6" Name="libFLAC-8.dll" DiskId="1" Source=".\Flappy Bird\libFLAC-8.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp18" Guid="ED647DBF-5DF4-4B89-9909-F972782EE1CD">
+                        <File Id="dll7" Name="libcrypto-1_1.dll" DiskId="1" Source=".\Flappy Bird\libcrypto-1_1.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp19" Guid="7382C279-3151-48F6-BAB9-A65B42C47969">
+                        <File Id="dll8" Name="libffi-7.dll" DiskId="1" Source=".\Flappy Bird\libffi-7.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp20" Guid="A79BB9B0-F2DE-4A1C-A0D8-DC1A710F4399">
+                        <File Id="dll9" Name="libfreetype-6.dll" DiskId="1" Source=".\Flappy Bird\libfreetype-6.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp21" Guid="649730EF-4A7A-4ED0-A814-141E151B9ADD">
+                        <File Id="dll10" Name="libjpeg-9.dll" DiskId="1" Source=".\Flappy Bird\libjpeg-9.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp22" Guid="B751C248-666A-403D-AD4B-DEB1821E944F">
+                        <File Id="dll11" Name="libmodplug-1.dll" DiskId="1" Source=".\Flappy Bird\libmodplug-1.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp23" Guid="503C2BA0-F4EF-4D9A-8F55-44C2D37B40EE">
+                        <File Id="dll12" Name="libmpg123-0.dll" DiskId="1" Source=".\Flappy Bird\libmpg123-0.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp24" Guid="C0433F26-CC16-4070-8B32-DF4A5C989B54">
+                        <File Id="dll13" Name="libogg-0.dll" DiskId="1" Source=".\Flappy Bird\libogg-0.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp25" Guid="3ECD5089-972E-4610-A4ED-B5CD8611EEC5">
+                        <File Id="dll14" Name="libopus-0.dll" DiskId="1" Source=".\Flappy Bird\libopus-0.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp26" Guid="61153396-51D6-45AA-8038-E72C96F126BB">
+                        <File Id="dll15" Name="libopusfile-0.dll" DiskId="1" Source=".\Flappy Bird\libopusfile-0.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp27" Guid="D2D51691-FED2-4F3E-B2C0-C147BD5AFB92">
+                        <File Id="dll16" Name="libpng16-16.dll" DiskId="1" Source=".\Flappy Bird\libpng16-16.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp28" Guid="B78F6B85-C7DB-4085-AB08-B528451D09EB">
+                        <File Id="dll17" Name="libssl-1_1.dll" DiskId="1" Source=".\Flappy Bird\libssl-1_1.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp29" Guid="316CA03F-17D4-4F76-997F-9AC63193DF1F">
+                        <File Id="dll18" Name="libtiff-5.dll" DiskId="1" Source=".\Flappy Bird\libtiff-5.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp30" Guid="5A52B4BB-E4FE-4AEF-8DA2-2C51D9F5AC38">
+                        <File Id="dll19" Name="libvorbis-0.dll" DiskId="1" Source=".\Flappy Bird\libvorbis-0.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp31" Guid="F7E0864F-297D-4256-A318-D4ADE399BCF6">
+                        <File Id="dll20" Name="libvorbisfile-3.dll" DiskId="1" Source=".\Flappy Bird\libvorbisfile-3.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp32" Guid="0ECEFCBE-29DC-4059-BFF2-687F49A074D2">
+                        <File Id="dll21" Name="libwebp-7.dll" DiskId="1" Source=".\Flappy Bird\libwebp-7.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp33" Guid="6F49C770-DEDF-4C3C-82E4-87F5C878062C">
+                        <File Id="dll22" Name="portmidi.dll" DiskId="1" Source=".\Flappy Bird\portmidi.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp34" Guid="1149F9E1-1824-4AE9-88A1-3C158CD3B8CC">
+                        <File Id="dll23" Name="python39.dll" DiskId="1" Source=".\Flappy Bird\python39.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp35" Guid="EC72B944-EC19-4566-B83C-0DD81F14FEC5">
+                        <File Id="dll24" Name="zlib1.dll" DiskId="1" Source=".\Flappy Bird\zlib1.dll" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp36" Guid="BE7BC9D2-4C81-4162-BCA3-1969933F38F0">
+                        <File Id="zip1" Name="base_library.zip" DiskId="1" Source=".\Flappy Bird\base_library.zip" KeyPath="yes" />
+                    </Component>
+                    <Component Id="root_comp37" Guid="DD6E9610-24CA-4FD0-8470-E0B7FAFCF0B2">
+                        <File Id="exe1" Name="Flappy Bird.exe" DiskId="1" Source=".\Flappy Bird\Flappy Bird.exe">
+                            <Shortcut Id="shortcut1" Directory="ProgramMenuDir" Name="Flappy Bird" WorkingDirectory="INSTALLDIR" Icon="icon.ico" IconIndex="0" Advertise="no" />
+                            <Shortcut Id="shortcut2" Directory="DesktopFolder" Name="Flappy Bird" WorkingDirectory="INSTALLDIR" Icon="icon.ico" IconIndex="0" Advertise="no" />
+                        </File>
+                        <RegistryValue Root="HKMU" Key="Software\[ProductName]" Name="shortcuts_created" Type="integer" Value="1" KeyPath="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ProgramMenuDir" Name="Flappy Bird">
+                    <Component Id="ProgramMenuDir" Guid="5C8DDE3B-71AD-402B-9E59-58EC1946FD62">
+                        <RemoveFolder Id="ProgramMenuDir" On="uninstall" />
+                        <RegistryValue Root="HKMU" Key="Software\[ProductName]" Name="startmenu_registered" Type="integer" Value="1" KeyPath="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+            <Directory Id="DesktopFolder" />
+        </Directory>
+        <Feature Id="Complete" Title="Flappy Bird" Description="The complete package." Display="expand" Level="1" ConfigurableDirectory="INSTALLDIR">
+            <ComponentRef Id="font1_comp1" />
+            <ComponentRef Id="font1_comp2" />
+            <ComponentRef Id="font2_comp1" />
+            <ComponentRef Id="help_comp1" />
+            <ComponentRef Id="digits_comp1" />
+            <ComponentRef Id="digits_comp2" />
+            <ComponentRef Id="digits_comp3" />
+            <ComponentRef Id="digits_comp4" />
+            <ComponentRef Id="digits_comp5" />
+            <ComponentRef Id="digits_comp6" />
+            <ComponentRef Id="digits_comp7" />
+            <ComponentRef Id="digits_comp8" />
+            <ComponentRef Id="digits_comp9" />
+            <ComponentRef Id="digits_comp10" />
+            <ComponentRef Id="icons_comp1" />
+            <ComponentRef Id="icons_comp2" />
+            <ComponentRef Id="icons_comp3" />
+            <ComponentRef Id="icons_comp4" />
+            <ComponentRef Id="icons_comp5" />
+            <ComponentRef Id="sprites_comp1" />
+            <ComponentRef Id="sprites_comp2" />
+            <ComponentRef Id="sprites_comp3" />
+            <ComponentRef Id="sprites_comp4" />
+            <ComponentRef Id="sprites_comp5" />
+            <ComponentRef Id="sprites_comp6" />
+            <ComponentRef Id="sounds_comp1" />
+            <ComponentRef Id="pygame_comp1" />
+            <ComponentRef Id="pygame_comp2" />
+            <ComponentRef Id="pygame_comp3" />
+            <ComponentRef Id="pygame_comp4" />
+            <ComponentRef Id="pygame_comp5" />
+            <ComponentRef Id="pygame_comp6" />
+            <ComponentRef Id="pygame_comp7" />
+            <ComponentRef Id="pygame_comp8" />
+            <ComponentRef Id="pygame_comp9" />
+            <ComponentRef Id="pygame_comp10" />
+            <ComponentRef Id="pygame_comp11" />
+            <ComponentRef Id="pygame_comp12" />
+            <ComponentRef Id="pygame_comp13" />
+            <ComponentRef Id="pygame_comp14" />
+            <ComponentRef Id="pygame_comp15" />
+            <ComponentRef Id="pygame_comp16" />
+            <ComponentRef Id="pygame_comp17" />
+            <ComponentRef Id="pygame_comp18" />
+            <ComponentRef Id="pygame_comp19" />
+            <ComponentRef Id="pygame_comp20" />
+            <ComponentRef Id="pygame_comp21" />
+            <ComponentRef Id="pygame_comp22" />
+            <ComponentRef Id="pygame_comp23" />
+            <ComponentRef Id="pygame_comp24" />
+            <ComponentRef Id="pygame_comp25" />
+            <ComponentRef Id="pygame_comp26" />
+            <ComponentRef Id="pygame_comp27" />
+            <ComponentRef Id="pygame_comp28" />
+            <ComponentRef Id="pygame_comp29" />
+            <ComponentRef Id="pygame_comp30" />
+            <ComponentRef Id="pygame_comp31" />
+            <ComponentRef Id="pygame_comp32" />
+            <ComponentRef Id="pygame_comp33" />
+            <ComponentRef Id="pygame_comp34" />
+            <ComponentRef Id="root_comp1" />
+            <ComponentRef Id="root_comp2" />
+            <ComponentRef Id="root_comp3" />
+            <ComponentRef Id="root_comp4" />
+            <ComponentRef Id="root_comp5" />
+            <ComponentRef Id="root_comp6" />
+            <ComponentRef Id="root_comp7" />
+            <ComponentRef Id="root_comp8" />
+            <ComponentRef Id="root_comp9" />
+            <ComponentRef Id="root_comp10" />
+            <ComponentRef Id="root_comp11" />
+            <ComponentRef Id="root_comp12" />
+            <ComponentRef Id="root_comp13" />
+            <ComponentRef Id="root_comp14" />
+            <ComponentRef Id="root_comp15" />
+            <ComponentRef Id="root_comp16" />
+            <ComponentRef Id="root_comp17" />
+            <ComponentRef Id="root_comp18" />
+            <ComponentRef Id="root_comp19" />
+            <ComponentRef Id="root_comp20" />
+            <ComponentRef Id="root_comp21" />
+            <ComponentRef Id="root_comp22" />
+            <ComponentRef Id="root_comp23" />
+            <ComponentRef Id="root_comp24" />
+            <ComponentRef Id="root_comp25" />
+            <ComponentRef Id="root_comp26" />
+            <ComponentRef Id="root_comp27" />
+            <ComponentRef Id="root_comp28" />
+            <ComponentRef Id="root_comp29" />
+            <ComponentRef Id="root_comp30" />
+            <ComponentRef Id="root_comp31" />
+            <ComponentRef Id="root_comp32" />
+            <ComponentRef Id="root_comp33" />
+            <ComponentRef Id="root_comp34" />
+            <ComponentRef Id="root_comp35" />
+            <ComponentRef Id="root_comp36" />
+            <ComponentRef Id="root_comp37" />
+            <ComponentRef Id="ProgramMenuDir" />
+        </Feature>
+        <UIRef Id="WixUI_InstallDir" />
+        <UIRef Id="WixUI_ErrorProgressText" />
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+        <WixVariable Id="WixUILicenseRtf" Value=".\Info.rtf" />
+    </Product>
+</Wix>

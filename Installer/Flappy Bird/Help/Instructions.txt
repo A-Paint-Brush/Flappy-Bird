@@ -1,0 +1,6 @@
+How to Play:
+When a round starts, a bird will be floating in the air until the player jumps for the first time, at which point gravity will kick in. Once this happens, pairs of pipes with a gap between the top and bottom piece will start moving towards the bird. If the bird bumps into a pipe or the ground, it dies. Therefore, the player has to maintain enough altitude to remain airborne while simultaneously adjusting the bird's altitude to fit through the gap between each pair of pipes. The game is infinite, so the objective is to survive as long as possible. The score given after losing is simply the number of pipe-pairs survived. Players who achieve a high-score get a chance to submit their score under a nickname of their choosing. Note that highscores are only stored locally on the device.
+
+Controls (during a round):
+Jump - Press the space key, or click anywhere on the screen.
+Pause - Press the 'P' key, or click the "menu" icon.

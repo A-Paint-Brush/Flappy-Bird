@@ -14,11 +14,11 @@ Download the files of this repository, then open a terminal and navigate into th
 
 #### Unused Files
 
-If you want to save disk space, there are some files and folders that can be deleted. Only the `./Fonts`, `./Help`, `./Images`, and `./Sounds` folders are used by the game at run-time. The remaining folders can be safely deleted. As for files, all files in the root directory of the project that isn't a Python file (.py) can be deleted. Therefore, you can delete this README file, `requirements.txt`, and `windows_compile.spec`.
+If you want to save disk space, there are some files and folders that can be deleted. Only the `./Fonts`, `./Help`, `./Images`, and `./Sounds` folders are used by the game at run-time. The remaining folders can be safely deleted. As for files, all files in the root directory of the project that isn't a Python file (.py) can be deleted. Therefore, you can delete this README file, `requirements.txt`, and `compile_info.spec`.
 
 ### Frozen Version
 
-If you don't need an installer, just download the file `./Releases/pyinstaller_bundle.zip` and extract it, then run the `Flappy Bird.exe` file in the folder to launch the game. A GUI installer will be added in the next commit.
+If you don't need an installer, download this repository and keep the folder `./Installer/Flappy Bird`. After that, run the `Flappy Bird.exe` file in the folder to launch the game. If you need an installer, [download](https://github.com/A-Paint-Brush/Flappy-Bird/raw/main/Installer/Installer.msi) the file `Installer.msi` and double click it to launch the installer.
 
 ## Compiling
 

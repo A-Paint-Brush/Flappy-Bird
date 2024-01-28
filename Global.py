@@ -60,7 +60,7 @@ def resize_mouse_pos(pos: Tuple[int, int],
                      resized_surf: Tuple[int, int]) -> Tuple[float, float]:
     offset_pos = (pos[0] - ((current_size[0] - resized_surf[0]) / 2),
                   pos[1] - ((current_size[1] - resized_surf[1]) / 2))
-    return (fixed_size[0] * (offset_pos[0] / resized_surf[0])),\
+    return (fixed_size[0] * (offset_pos[0] / resized_surf[0])), \
            (fixed_size[1] * (offset_pos[1] / resized_surf[1]))
 
 
@@ -186,7 +186,7 @@ def configure_dpi() -> None:
 def post_win8_config_dpi() -> bool:
     try:
         windll.shcore.SetProcessDpiAwareness(2)
-    except (OSError, AttributeError):
+    except (NameError, OSError, AttributeError):
         return False
     else:
         return True
@@ -195,7 +195,7 @@ def post_win8_config_dpi() -> bool:
 def pre_win8_config_dpi() -> bool:
     try:
         windll.shcore.SetProcessDPIAware()
-    except (OSError, AttributeError):
+    except (NameError, OSError, AttributeError):
         return False
     else:
         return True

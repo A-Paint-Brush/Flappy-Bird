@@ -48,8 +48,8 @@ class MainProc:
         pygame.event.set_blocked(None)
         pygame.event.set_allowed(self.listen_events)
         pygame.key.stop_text_input()  # Ensure IME input is off when the window first opens.
-        self.font = pygame.font.Font(resolve_path("./Fonts/Arial/normal.ttf"), 35)
-        self.mandarin_font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 20)
+        self.font = pygame.font.SysFont("arial", 35)
+        self.mandarin_font = pygame.font.SysFont(("microsoftjhenghei", "notosanscjktc", "notofontscjk"), 20)
         self.mouse = Mouse.Cursor()
         self.clock = pygame.time.Clock()
         self.special_widgets: Dict[str, Union[tuple, Widgets.SceneTransition, ChildWindow]] = {}
@@ -253,7 +253,7 @@ class ChildWindow:
         self.w_id_counter = 1
         self.word_wrap_width = word_wrap_width - border_radius * 2 - self.scrollbar_width
         self.vertical_padding = 20
-        self.font = pygame.font.Font(resolve_path("./Fonts/JhengHei/normal.ttc"), 23)
+        self.font = pygame.font.SysFont(("microsoftjhenghei", "notosanscjktc", "notofontscjk"), 23)
         # region Initialize Frame
         # Note that the position of the frame isn't important, since it will be handled by the window it's displayed in.
         self.content_frame = Widgets.Frame(0, 0, self.frame_size[0], self.frame_size[1], 20, z_index=z_index)

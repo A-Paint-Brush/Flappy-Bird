@@ -8,7 +8,7 @@ a = Analysis(
     ['main.py', 'Bird.py', 'Counters.py', 'Dialogs.py', 'Global.py', 'Ground.py', 'Keyboard.py', 'Mouse.py', 'Notifier.py', 'Physics.py', 'Pipe.py', 'Rainbow.py', 'Storage.py', 'Time.py', 'Widgets.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('Help', 'Help'), ('Images', 'Images'), ('Sounds', 'Sounds')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

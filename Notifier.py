@@ -10,8 +10,8 @@ class ToastNotifier(pygame.sprite.Sprite):
                  message_text: str, toast_id: int):
         super().__init__()
         self.id = toast_id
-        self.title_font = pygame.font.Font(find_abs_path("./Fonts/Arial/bold.ttf"), 25)
-        self.body_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 23)
+        self.title_font = pygame.font.SysFont("arial", 25, bold=True)
+        self.body_font = pygame.font.SysFont("arial", 23)
         self.icon_img = icon
         self.image_padding = 15
         self.resolution = resolution

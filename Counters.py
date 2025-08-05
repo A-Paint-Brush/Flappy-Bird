@@ -9,7 +9,7 @@ class FPS(pygame.sprite.Sprite):
         last 10 frames."""
         super().__init__()
         self.resolution = resolution
-        self.font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 25)
+        self.font = pygame.font.SysFont("arial", 25)
         self.frame_timer = Time.Time()
         self.frame_timer.reset_timer()
         self.fps_data = []

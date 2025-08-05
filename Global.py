@@ -5,6 +5,7 @@ import platform
 import pygame.transform
 with suppress(ImportError):
     from ctypes import windll
+cjk_fonts = ("microsoftjhenghei", "notosanscjktc", "notofontscjk")
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 ORANGE = (255, 160, 20)

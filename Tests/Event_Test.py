@@ -118,7 +118,7 @@ class FpsCounter(pygame.sprite.Sprite):
         super().__init__()
         # region Sprite Data
         self.resolution = None
-        self.font = pygame.font.SysFont("Arial", 22)
+        self.font = pygame.font.SysFont("arial", 22)
         self.h_pad = 10
         self.text = "--"
         self.width = None

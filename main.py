@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 from functools import partial
 from Global import *
 import Mouse
@@ -41,7 +41,7 @@ class MainThread:
         self.display_surface = pygame.Surface(self.fixed_resolution)
         # endregion
         # region Widget Setup
-        self.font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 35)
+        self.font = pygame.font.SysFont("arial", 35)
         self.special_widgets: Dict[Literal["transition", "settings", "pause", "send_score"], List[Any]] = {}
         self.busy_frame = Dialogs.BusyFrame(self.fixed_resolution, self.font, 100, 125, 19, 90, 250, (205, 205, 205),
                                             (26, 134, 219))
@@ -330,8 +330,8 @@ class MainThread:
 
     def init_achievements_frame(self) -> None:
         self.display_frame = Widgets.Frame(0, 0, self.fixed_resolution[0], self.fixed_resolution[1], 20, z_index=4)
-        heading_font = pygame.font.Font(find_abs_path("./Fonts/Arial/bold.ttf"), 25)
-        body_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 23)
+        heading_font = pygame.font.SysFont("arial", 25, bold=True)
+        body_font = pygame.font.SysFont("arial", 23)
         self.ui_mgr = Dialogs.AchievementManager(self.display_frame, self.fixed_resolution, self.font, heading_font,
                                                  body_font, self.achievement_list.get_achievement_string,
                                                  partial(self.schedule_toggle_round, "menu"))

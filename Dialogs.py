@@ -96,8 +96,8 @@ class BaseDialog:
         self.button_thickness = button_thickness
         self.animation_speed = animation_speed
         self.z_index = z_index
-        self.small_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 25)
-        self.large_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 35)
+        self.small_font = pygame.font.SysFont("arial", 25)
+        self.large_font = pygame.font.SysFont("arial", 35)
         self.height_difference = self.border_radius * 2 + button_length + button_padding
         self.frame_size = [max_window_size[0] - self.border_radius * 2,
                            max_window_size[1] - self.height_difference]
@@ -240,8 +240,8 @@ class SubmitScore(BaseDialog):
                  z_index: int = 1):
         super().__init__(surface, resolution, max_window_size, border_radius, button_length, button_padding,
                          button_thickness, animation_speed, max_widget_width, z_index)
-        self.label_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 22)
-        self.entry_font = pygame.font.Font(find_abs_path("./Fonts/JhengHei/normal.ttc"), 20)
+        self.label_font = pygame.font.SysFont("arial", 22)
+        self.entry_font = pygame.font.SysFont(cjk_fonts, 20)
         self.submitted = False
         self.callback = callback
         vertical_padding = 10
@@ -335,8 +335,8 @@ class LoseScreen:
                  callbacks: List[Callable[[], None]], kill_achievement_thread: Callable[[], None]):
         self.parent_frame = parent_frame
         self.resolution = resolution
-        self.large_font = pygame.font.Font(find_abs_path("./Fonts/Arial/normal.ttf"), 50)
-        self.small_font = pygame.font.Font(find_abs_path("./Fonts/JhengHei/normal.ttc"), 16)
+        self.large_font = pygame.font.SysFont("arial", 50)
+        self.small_font = pygame.font.SysFont(cjk_fonts, 16)
         self.score = score
         self.state: Literal["idle", "fetching", "writing"] = "idle"
         self.widget_id = 1
